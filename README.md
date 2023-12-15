@@ -4,9 +4,6 @@
 
 <!-- PROJECT SHIELDS -->
 
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 [![LinkedIn][linkedin-shield]][linkedin-url]
@@ -15,8 +12,8 @@
 <br />
 
 <p align="center">
-  <a href="https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter/">
-    <img src="images/logo.jpg" alt="YuanRateLimiter" width="80" height="80">
+  <a href="https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter/Doc/images">
+    <img src="https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter/Doc/images/logo.jpg" alt="YuanRateLimiter" width="80" height="80">
   </a>
 
   <h3 align="center">"完美的"README模板</h3>
