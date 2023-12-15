@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34309.116
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YuanRateLimiter", "YuanRateLimiter\YuanRateLimiter.csproj", "{0935458C-DAB4-4182-B930-C75582F90F8D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0935458C-DAB4-4182-B930-C75582F90F8D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0935458C-DAB4-4182-B930-C75582F90F8D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0935458C-DAB4-4182-B930-C75582F90F8D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0935458C-DAB4-4182-B930-C75582F90F8D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E898283B-DE5D-4B8B-9ED8-3BFAD2B001D4}
+	EndGlobalSection
+EndGlobal
