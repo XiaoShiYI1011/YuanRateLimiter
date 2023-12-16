@@ -19,22 +19,25 @@ namespace YuanRateLimiter.Middleware
     {
         private readonly RequestDelegate next;
         private readonly TokenBucket tokenBucket;
+        private readonly RateLimitingConfig config;
         private readonly ILogger<RateLimitingMiddleware> logger;
 
         public RateLimitingMiddleware(
             RequestDelegate next,
             TokenBucket tokenBucket,
+            RateLimitingConfig config,
             ILogger<RateLimitingMiddleware> logger)
         {
             this.next = next;
             this.tokenBucket = tokenBucket;
+            this.config = config;
             this.logger = logger;
         }
 
         public async Task InvokeAsync(HttpContext context)
         {
             // 是否开启限流
-            if (!RateLimitingConfig.EnableRateLimiting)
+            if (!config.EnableRateLimiting)
             {
                 await this.next(context);
                 return;
@@ -42,15 +45,15 @@ namespace YuanRateLimiter.Middleware
             int tokensPerSecond = 0;
             int capacity = 0;
             // 是否开启全接口限流
-            if (RateLimitingConfig.IsAllApiRateLimiting)
+            if (config.IsAllApiRateLimiting)
             {
-                tokensPerSecond = RateLimitingConfig.IsAllApiFlowLimitingRule.TokensPerSecond;
-                capacity = RateLimitingConfig.IsAllApiFlowLimitingRule.Capacity;
+                tokensPerSecond = config.IsAllApiFlowLimitingRule.TokensPerSecond;
+                capacity = config.IsAllApiFlowLimitingRule.Capacity;
             }
             // Method 级别限流
-            if (RateLimitingConfig.RateLimitingLogLevel!.Equals("Method"))
+            if (config.RateLimitingLogLevel!.Equals("Method"))
             {
-                var methodFlowLimitingRules = RateLimitingConfig.MethodFlowLimitingRules;
+                var methodFlowLimitingRules = config.MethodFlowLimitingRules;
                 var methods = methodFlowLimitingRules.Where(t => t.Method.Equals(context.Request.Method)).ToList();
                 if (methods.Count <= 0)
                 {
@@ -61,9 +64,9 @@ namespace YuanRateLimiter.Middleware
                 capacity = methods[0].Capacity;
             }
             // Api 级别限流
-            if (RateLimitingConfig.RateLimitingLogLevel!.Equals("Api"))
+            if (config.RateLimitingLogLevel!.Equals("Api"))
             {
-                var apiFlowLimitingRules = RateLimitingConfig.ApiFlowLimitingRules;
+                var apiFlowLimitingRules = config.ApiFlowLimitingRules;
                 var apis = apiFlowLimitingRules.Where(t => t.Path.Equals(context.Request.Path.Value)).ToList();
                 if (apis.Count <= 0)
                 {
@@ -75,7 +78,7 @@ namespace YuanRateLimiter.Middleware
             }
             if (!await this.tokenBucket.ConsumeToken(tokensPerSecond, capacity))
             {
-                context.Response.StatusCode = RateLimitingConfig.HttpStatusCode;
+                context.Response.StatusCode = config.HttpStatusCode;
                 // TODO:配置日志记录
                 //     1.考虑到使用者可能会采用不同的日志框架，目前仅测试了微软自带的日志记录
                 this.logger.LogWarning($"{DateTime.Now}：接口已限流 ==> {context.Request.Path.Value}\n请求IP ==> {IPUtil.GetClientIPv4(context)}");

@@ -5,6 +5,10 @@ VisualStudioVersion = 17.8.34309.116
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YuanRateLimiter", "YuanRateLimiter\YuanRateLimiter.csproj", "{0935458C-DAB4-4182-B930-C75582F90F8D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test", "Test", "{6E1BEB71-6ADD-4B11-A18D-7F55445C0993}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net6.WebApi.Test", "Net6.WebApi.Test\Net6.WebApi.Test.csproj", "{1C1C5A51-A9D8-4C59-9415-9E757B1F3269}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,9 +19,16 @@ Global
 		{0935458C-DAB4-4182-B930-C75582F90F8D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0935458C-DAB4-4182-B930-C75582F90F8D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0935458C-DAB4-4182-B930-C75582F90F8D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C1C5A51-A9D8-4C59-9415-9E757B1F3269}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C1C5A51-A9D8-4C59-9415-9E757B1F3269}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C1C5A51-A9D8-4C59-9415-9E757B1F3269}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C1C5A51-A9D8-4C59-9415-9E757B1F3269}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1C1C5A51-A9D8-4C59-9415-9E757B1F3269} = {6E1BEB71-6ADD-4B11-A18D-7F55445C0993}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E898283B-DE5D-4B8B-9ED8-3BFAD2B001D4}

@@ -1,4 +1,5 @@
-﻿using YuanRateLimiter.Const;
+﻿using YuanRateLimiter.Config;
+using YuanRateLimiter.Const;
 using YuanRateLimiter.Repository;
 
 /*
@@ -12,11 +13,14 @@ namespace YuanRateLimiter.Core
     public class TokenBucket
     {
         private readonly RedisRepository redisRepository;
+        private readonly RateLimitingConfig config;
         private readonly SemaphoreSlim semaphore = new(1, 1);
 
-        public TokenBucket(RedisRepository redisRepository)
+        public TokenBucket(RedisRepository redisRepository, RateLimitingConfig config)
         {
             this.redisRepository = redisRepository;
+            this.config = config;
+            if (string.IsNullOrEmpty(config.CacheKey)) config.CacheKey = CacheKey.TokenBucketStateKey;
         }
 
         /// <summary>
@@ -50,13 +54,13 @@ namespace YuanRateLimiter.Core
             await semaphore.WaitAsync();
             try
             {
-                var data = this.redisRepository.Get<TokenBucketState>(CacheKey.TokenBucketStateKey);
+                var data = this.redisRepository.Get<TokenBucketState>(config.CacheKey);
                 var tokenBucketState = new TokenBucketState
                 {
                     CurrentTokens = Math.Max(0, data.CurrentTokens - 1),
                     LastRefillTimestamp = data.LastRefillTimestamp,
                 };
-                this.redisRepository.Set<TokenBucketState>(CacheKey.TokenBucketStateKey, tokenBucketState);
+                this.redisRepository.Set<TokenBucketState>(config.CacheKey, tokenBucketState);
             }
             finally
             {
@@ -75,7 +79,7 @@ namespace YuanRateLimiter.Core
         {
             double currentTokens = await GetCurrentTokens(capacity);
             double updatedTokens = Math.Min(capacity, currentTokens + newTokens);
-            this.redisRepository.Set<TokenBucketState>(CacheKey.TokenBucketStateKey, new TokenBucketState
+            this.redisRepository.Set<TokenBucketState>(config.CacheKey, new TokenBucketState
             {
                 CurrentTokens = updatedTokens,
                 LastRefillTimestamp = now,
@@ -88,7 +92,7 @@ namespace YuanRateLimiter.Core
         /// <returns></returns>
         private async Task<double> GetCurrentTokens(int capacity)
         {
-            var data = this.redisRepository.Get<TokenBucketState>(CacheKey.TokenBucketStateKey);
+            var data = this.redisRepository.Get<TokenBucketState>(config.CacheKey);
             return await Task.FromResult(data?.CurrentTokens ?? capacity);
         }
 
@@ -98,7 +102,7 @@ namespace YuanRateLimiter.Core
         /// <returns></returns>
         private async Task<long> GetLastRefillTimestamp()
         {
-            var data = this.redisRepository.Get<TokenBucketState>(CacheKey.TokenBucketStateKey);
+            var data = this.redisRepository.Get<TokenBucketState>(config.CacheKey);
             return await Task.FromResult(data?.LastRefillTimestamp ?? 0);
         }
     }

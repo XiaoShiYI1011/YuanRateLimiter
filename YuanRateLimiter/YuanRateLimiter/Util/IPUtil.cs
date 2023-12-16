@@ -48,7 +48,6 @@ namespace YuanRateLimiter.Util
             //    {
             //        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
             //        var forwardedIps = forwardedFor?.Split(',').Select(s => s.Trim()).ToList();
-            //        // 选择第一个非代理服务器 IP 地址
             //        ip = forwardedIps?.FirstOrDefault(s => !IsPrivateIPAddress(s)) ?? ip;
             //    }
             //    if (string.IsNullOrEmpty(ip))

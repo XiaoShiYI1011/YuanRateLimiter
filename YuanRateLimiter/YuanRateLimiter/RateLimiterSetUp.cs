@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using SimpleRedis;
+using YuanRateLimiter.Config;
 using YuanRateLimiter.Core;
 using YuanRateLimiter.Middleware;
 using YuanRateLimiter.Repository;
@@ -22,6 +23,20 @@ namespace YuanRateLimiter
         /// <param name="redisConnSrt"></param>
         public static void AddRateLimiterSetUp(this IServiceCollection services, string redisConnSrt)
         {
+            services.AddSimpleRedis(redisConnSrt);
+            services.AddSingleton<TokenBucket>();
+            services.AddSingleton<RedisRepository>();
+        }
+
+        /// <summary>
+        /// 注册限流中间件
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="redisConnSrt"></param>
+        /// <param name="config"></param>
+        public static void AddRateLimiterSetUp(this IServiceCollection services, string redisConnSrt, Func<RateLimitingConfig, RateLimitingConfig> config)
+        {
+            services.AddSingleton(config(new RateLimitingConfig()));
             services.AddSimpleRedis(redisConnSrt);
             services.AddSingleton<TokenBucket>();
             services.AddSingleton<RedisRepository>();
