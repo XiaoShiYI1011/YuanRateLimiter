@@ -21,11 +21,15 @@ YuanRateLimiter是一个Asp.Net Core的限流中间件。如果你项目不想�
 1. 引用dll文件
 
 2. ```csharp
+    // 注册限流中间件
     builder.Services.AddRateLimiterSetUp(
         builder.Configuration["Redis连接字符串"], 
         config => builder.Configuration.GetSection("RateLimiting配置节点").Get<RateLimitingConfig>());
+    
+    // 使用限流中间件
+    app.UseRateLimitMiddleware();
     ```
-
+    
 3. appsettings.json文件示例
 
     ```json
