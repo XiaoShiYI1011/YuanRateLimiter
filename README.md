@@ -7,12 +7,13 @@
 
 ## 🎇框架介绍
 
-YuanRateLimiter是一个Asp.Net Core的限流中间件。如果你项目不想采用国外的限流组件那就可以参考此项目或者直接使用，配置灵活：通过appsettings.json文件配置，支持全接口限流、Method限流、API接口限流。默认采用基于Redis的令牌桶算法，正在集成其他限流算法。采用基于[NewLife.Redis](https://github.com/NewLifeX/NewLife.Redis)二次封装的[SimpleRedis](https://gitee.com/zxzyjs/SimpleRedis.git)。简化了Redis的操作，更方便使用。核心代码注释覆盖率>90%。值得注意的是NET 8自带了完善的限流中间件(很烦，开源开得有点晚了...慢了一步)，友情链接：[ASP.NET Core 中的速率限制中间件 | Microsoft Learn](https://learn.microsoft.com/zh-cn/aspnet/core/performance/rate-limit?view=aspnetcore-8.0)。如果你是NET 8开发的项目，请使用NET 8自带的限流中间件。温馨提示：该项目暂未开发成熟，请勿直接用于生产项目。
+YuanRateLimiter是一个Asp.Net Core的限流中间件。如果你项目不想采用国外的限流组件那就可以参考此项目或者直接使用，配置灵活：通过appsettings.json文件配置，支持全接口限流、Method限流、API接口限流。默认采用基于Redis的令牌桶算法，支持Redis和MemoryCache的无缝切换。正在集成其他限流算法。采用基于[NewLife.Redis](https://github.com/NewLifeX/NewLife.Redis)二次封装的[SimpleRedis](https://gitee.com/zxzyjs/SimpleRedis.git)。简化了Redis的操作，更方便使用。核心代码注释覆盖率>90%。值得注意的是NET 8自带了完善的限流中间件(很烦，开源开得有点晚了...慢了一步)，友情链接：[ASP.NET Core 中的速率限制中间件 | Microsoft Learn](https://learn.microsoft.com/zh-cn/aspnet/core/performance/rate-limit?view=aspnetcore-8.0)。如果你是NET 8开发的项目，请使用NET 8自带的限流中间件。温馨提示：该项目暂未开发成熟，请勿直接用于生产项目。
 
-## 📑开发日志
+## 📑更新计划
 
-- MemoryCache的支持🛠
+- Framework版本的支持🛠
 - 集成漏桶限流算法🛠
+- MemoryCache的支持✔
 - 发布NuGet包✔
 - 基础版本开源✔
 
@@ -21,7 +22,7 @@ YuanRateLimiter是一个Asp.Net Core的限流中间件。如果你项目不想�
 1. NuGet安装
 
     ```
-    NuGet\Install-Package YuanRateLimiter -Version 1.0.1
+    NuGet\Install-Package YuanRateLimiter -Version 1.0.2
     ```
 
 2. 使用
@@ -29,9 +30,13 @@ YuanRateLimiter是一个Asp.Net Core的限流中间件。如果你项目不想�
     ```csharp
     // NET 6:
     // 注册限流中间件
+    // 使用Redis：
     builder.Services.AddRateLimiterSetUp(
         builder.Configuration["Redis连接字符串"], 
         config => builder.Configuration.GetSection("RateLimiting配置节点").Get<RateLimitingConfig>());
+    // 使用MemoryCache：
+    builder.Services.AddRateLimiterSetUp(
+        config => builder.Configuration.GetSection("RateLimiting").Get<RateLimitingConfig>());
     
     // 使用限流中间件
     app.UseRateLimitMiddleware();
