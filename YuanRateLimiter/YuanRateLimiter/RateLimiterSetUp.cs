@@ -1,10 +1,11 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using NewLife.Caching;
 using SimpleRedis;
+using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Core;
 using YuanRateLimiter.Middleware;
-using YuanRateLimiter.Repository;
 
 /*
  * 类名：RateLimiterSetUp
@@ -21,11 +22,19 @@ namespace YuanRateLimiter
         /// </summary>
         /// <param name="services"></param>
         /// <param name="redisConnSrt"></param>
-        public static void AddRateLimiterSetUp(this IServiceCollection services, string redisConnSrt)
+        public static void AddRateLimiterSetUp(this IServiceCollection services, string redisConnSrt = null)
         {
-            services.AddSimpleRedis(redisConnSrt);
             services.AddSingleton<TokenBucket>();
-            services.AddSingleton<RedisRepository>();
+            if (redisConnSrt == null) 
+            {
+                services.AddSingleton<MemoryCache>();
+                services.AddSingleton<ICacheService, MemoryCacheRepository>(); 
+            }
+            else 
+            {
+                services.AddSimpleRedis(redisConnSrt);
+                services.AddSingleton<ICacheService, RedisCacheRepository>(); 
+            }
         }
 
         /// <summary>
@@ -34,12 +43,20 @@ namespace YuanRateLimiter
         /// <param name="services"></param>
         /// <param name="redisConnSrt"></param>
         /// <param name="config"></param>
-        public static void AddRateLimiterSetUp(this IServiceCollection services, string redisConnSrt, Func<RateLimitingConfig, RateLimitingConfig> config)
+        public static void AddRateLimiterSetUp(this IServiceCollection services, Func<RateLimitingConfig, RateLimitingConfig> config, string redisConnSrt = null)
         {
             services.AddSingleton(config(new RateLimitingConfig()));
-            services.AddSimpleRedis(redisConnSrt);
             services.AddSingleton<TokenBucket>();
-            services.AddSingleton<RedisRepository>();
+            if (redisConnSrt == null)
+            {
+                services.AddSingleton<MemoryCache>();
+                services.AddSingleton<ICacheService, MemoryCacheRepository>();
+            }
+            else
+            {
+                services.AddSimpleRedis(redisConnSrt);
+                services.AddSingleton<ICacheService, RedisCacheRepository>();
+            }
         }
 
         /// <summary>

@@ -6,7 +6,7 @@
  */
 namespace YuanRateLimiter.Const
 {
-    public class CacheKey
+    internal class CacheKey
     {
         /// <summary>
         /// 令牌桶Key

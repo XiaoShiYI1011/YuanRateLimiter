@@ -15,7 +15,7 @@ namespace YuanRateLimiter.Middleware
     /// <summary>
     /// 限流中间件
     /// </summary>
-    public class RateLimitingMiddleware
+    internal class RateLimitingMiddleware
     {
         private readonly RequestDelegate next;
         private readonly TokenBucket tokenBucket;

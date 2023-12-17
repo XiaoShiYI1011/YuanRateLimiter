@@ -6,7 +6,7 @@
  */
 namespace YuanRateLimiter.Core
 {
-    public class TokenBucketState
+    internal class TokenBucketState
     {
         /// <summary>
         /// 当前令牌数量

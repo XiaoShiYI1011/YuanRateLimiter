@@ -1,22 +1,22 @@
 ﻿using SimpleRedis;
 
 /*
- * 类名：RedisRepository
+ * 类名：RedisCacheRepository
  * 描述：Redis 仓储类
  * 创 建 者：十一 
  * 创建时间：2023/11/20 22:24:58 
  */
-namespace YuanRateLimiter.Repository
+namespace YuanRateLimiter.Cache
 {
     /// <summary>
     /// Redis 仓储类
     /// </summary>
-    public class RedisRepository
+    internal class RedisCacheRepository : ICacheService
     {
         private readonly ISimpleRedis RedisClient;
         public ISimpleRedis Client => RedisClient;
 
-        public RedisRepository(ISimpleRedis redisClient)
+        public RedisCacheRepository(ISimpleRedis redisClient)
         {
             RedisClient = redisClient;
         }
@@ -49,9 +49,9 @@ namespace YuanRateLimiter.Repository
         /// <param name="member">元素</param>
         /// <param name="score">分数</param>
         /// <returns>添加行数</returns>
-        public int AddSortSet<T>(string key, T member, double score)
+        public bool AddSortSet<T>(string key, T member, double score)
         {
-            return RedisClient.SortedSetAdd<T>(key, member, score);
+            return RedisClient.SortedSetAdd<T>(key, member, score) > 0;
         }
 
         /// <summary>

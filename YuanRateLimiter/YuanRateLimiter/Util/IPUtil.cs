@@ -13,7 +13,7 @@ namespace YuanRateLimiter.Util
     /// <summary>
     /// IP 地址工具类
     /// </summary>
-    public class IPUtil
+    internal class IPUtil
     {
         /// <summary>
         /// 获取客户端IP地址
