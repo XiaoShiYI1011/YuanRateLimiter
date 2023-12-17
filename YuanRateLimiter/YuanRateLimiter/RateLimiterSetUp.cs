@@ -4,7 +4,8 @@ using NewLife.Caching;
 using SimpleRedis;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
-using YuanRateLimiter.Core;
+using YuanRateLimiter.Core.Interface;
+using YuanRateLimiter.Core.TokenBucket;
 using YuanRateLimiter.Middleware;
 
 /*
@@ -24,16 +25,16 @@ namespace YuanRateLimiter
         /// <param name="redisConnSrt"></param>
         public static void AddRateLimiterSetUp(this IServiceCollection services, string redisConnSrt = null)
         {
-            services.AddSingleton<TokenBucket>();
-            if (redisConnSrt == null) 
+            services.AddSingleton<IRateLimiter, TokenBucket>();
+            if (redisConnSrt == null)
             {
                 services.AddSingleton<MemoryCache>();
-                services.AddSingleton<ICacheService, MemoryCacheRepository>(); 
+                services.AddSingleton<ICacheService, MemoryCacheRepository>();
             }
-            else 
+            else
             {
                 services.AddSimpleRedis(redisConnSrt);
-                services.AddSingleton<ICacheService, RedisCacheRepository>(); 
+                services.AddSingleton<ICacheService, RedisCacheRepository>();
             }
         }
 
@@ -46,7 +47,7 @@ namespace YuanRateLimiter
         public static void AddRateLimiterSetUp(this IServiceCollection services, Func<RateLimitingConfig, RateLimitingConfig> config, string redisConnSrt = null)
         {
             services.AddSingleton(config(new RateLimitingConfig()));
-            services.AddSingleton<TokenBucket>();
+            services.AddSingleton<IRateLimiter, TokenBucket>();
             if (redisConnSrt == null)
             {
                 services.AddSingleton<MemoryCache>();
