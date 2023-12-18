@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
 using System.Net;
-using System.Net.Sockets;
 
 /*
  * 类名：IPUtil
@@ -26,48 +25,27 @@ namespace YuanRateLimiter.Util
             if (context.Connection.RemoteIpAddress != null)
             {
                 if (context.Request.Headers.ContainsKey("X-Real-IP"))
-                {
                     ip = context.Request.Headers["X-Real-IP"].FirstOrDefault();
-                }
                 if (context.Request.Headers.ContainsKey("X-Forwarded-For"))
                 {
-                    ip = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+                    var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+                    var forwardedIps = forwardedFor?.Split(',').Select(s => s.Trim()).ToList();
+                    if (forwardedIps?.Count > 0)
+                    {
+                        foreach (var forwardedIp in forwardedIps)
+                        {
+                            if (!IPAddress.IsLoopback(IPAddress.Parse(forwardedIp)))
+                            {
+                                ip = forwardedIp;
+                                break;
+                            }
+                        }
+                    }
                 }
                 if (string.IsNullOrEmpty(ip))
-                {
                     ip = context.Connection.RemoteIpAddress?.MapToIPv4()?.ToString();
-                }
             }
             return ip;
-            //string ip = string.Empty;
-            //if (context.Connection.RemoteIpAddress != null)
-            //{
-            //    if (context.Request.Headers.ContainsKey("X-Real-IP"))
-            //        ip = context.Request.Headers["X-Real-IP"].FirstOrDefault();
-            //    if (context.Request.Headers.ContainsKey("X-Forwarded-For"))
-            //    {
-            //        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-            //        var forwardedIps = forwardedFor?.Split(',').Select(s => s.Trim()).ToList();
-            //        ip = forwardedIps?.FirstOrDefault(s => !IsPrivateIPAddress(s)) ?? ip;
-            //    }
-            //    if (string.IsNullOrEmpty(ip))
-            //        ip = context.Connection.RemoteIpAddress?.MapToIPv4()?.ToString();
-            //}
-            //return ip;
-        }
-
-        /// <summary>
-        /// 检查是否是私有地址
-        /// </summary>
-        /// <param name="ipAddress"></param>
-        /// <returns></returns>
-        private static bool IsPrivateIPAddress(string ipAddress)
-        {
-            var ip = IPAddress.Parse(ipAddress);
-            return ip.AddressFamily == AddressFamily.InterNetwork &&
-                   (ip.GetAddressBytes()[0] == 10 ||
-                    (ip.GetAddressBytes()[0] == 172 && ip.GetAddressBytes()[1] >= 16 && ip.GetAddressBytes()[1] <= 31) ||
-                    (ip.GetAddressBytes()[0] == 192 && ip.GetAddressBytes()[1] == 168));
         }
     }
 }
