@@ -9,15 +9,15 @@ namespace YuanRateLimiter.Enum
     public enum RateLimiterModel
     {
         /// <summary>
-        /// 令牌桶
+        /// 令牌桶算法
         /// </summary>
         TokenBucket = 0,
         /// <summary>
-        /// 漏桶
+        /// 漏桶算法
         /// </summary>
         LeakBucket = 1,
         /// <summary>
-        /// 滑动窗口
+        /// 滑动窗口算法
         /// </summary>
         SlidingWindow = 2
     }

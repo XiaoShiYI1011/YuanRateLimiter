@@ -42,20 +42,13 @@ namespace YuanRateLimiter.Middleware
                 await this.next(context);
                 return;
             }
-            switch (config.RateLimiterModel)
+            if (!await rateLimiter.CheckRateLimit(context))
             {
-                case 0:  // 令牌桶限流
-                    if (!await rateLimiter.CheckRateLimit(context))
-                    {
-                        context.Response.StatusCode = config.HttpStatusCode;
-                        context.Response.ContentType = "text/plain";
-                        await context.Response.WriteAsync(config.LimitingMessage);
-                        logger.LogWarning($"{DateTime.Now}：接口已限流 ==> {context.Request.Path.Value}\n请求IP ==> {IPUtil.GetClientIPv4(context)}");
-                        return;
-                    }
-                    break;
-                default:
-                    break;
+                context.Response.StatusCode = config.HttpStatusCode;
+                context.Response.ContentType = "text/plain";
+                await context.Response.WriteAsync(config.LimitingMessage);
+                logger.LogWarning($"{DateTime.Now}：接口已限流 ==> {context.Request.Path.Value}\n请求IP ==> {IPUtil.GetClientIPv4(context)}");
+                return;
             }
             await this.next(context);
         }
