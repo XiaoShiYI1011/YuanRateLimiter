@@ -18,23 +18,80 @@ namespace YuanRateLimiter.Cache
         }
 
         /// <summary>
+        /// 添加一条缓存数据
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <param name="value">Value</param>
+        /// <returns></returns>
+        public bool Set<T>(string key, T value)
+        {
+            return this.memoryCache.Set<T>(key, value);
+        }
+
+        /// <summary>
         /// 添加一条缓存数据，可设置过期时间
         /// </summary>
         /// <typeparam name="T">序列化类型</typeparam>
         /// <param name="key">Key</param>
         /// <param name="value">Value</param>
-        /// <param name="expires">过期时间（单位：秒）</param>
+        /// <param name="expires">过期时间</param>
         /// <returns></returns>
-        public bool Set<T>(string key, T value, long expires = -1)
+        public bool Set<T>(string key, T value, TimeSpan expire)
         {
-            if (expires == -1)
+            return this.memoryCache.Set<T>(key, value, expire);
+        }
+
+        /// <summary>
+        /// 添加一条数据到List
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        public void ListAdd<T>(string key, T value)
+        {
+            var list = new List<T> { value };
+            this.memoryCache.Set(key, list);
+        }
+
+        /// <summary>
+        /// List（头）左推
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <param name="values">Value</param>
+        /// <returns></returns>
+        public int ListLeftPush<T>(string key, IEnumerable<T> values)
+        {
+            var data = Get<List<T>>(key) ?? new List<T>();
+            int count = 0;
+            foreach (var value in values)
             {
-                return memoryCache.Set<T>(key, value);
+                count++;
+                data.Insert(0, value);
             }
-            else
+            Set(key, data);
+            return count;
+        }
+
+        /// <summary>
+        /// List（尾）右推
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <param name="values">Value</param>
+        /// <returns></returns>
+        public int ListRightPush<T>(string key, IEnumerable<T> values)
+        {
+            var data = Get<List<T>>(key) ?? new List<T>();
+            int count = 0;
+            foreach (var value in values)
             {
-                return memoryCache.Set<T>(key, value, TimeSpan.FromSeconds(expires));
+                count++;
+                data.Add(value);
             }
+            Set(key, data);
+            return count;
         }
 
         /// <summary>
@@ -47,20 +104,20 @@ namespace YuanRateLimiter.Cache
         /// <returns>添加行数</returns>
         public bool AddSortSet<T>(string key, T member, double score)
         {
-            var data = memoryCache.Get<SortedList<T, double>>(key);
-            if (data == null) 
+            var data = this.memoryCache.Get<SortedList<T, double>>(key);
+            if (data == null)
             {
                 var sortedList = new SortedList<T, double>
                 {
                     { member, score }
                 };
-                memoryCache.Set(key, sortedList);
+                this.memoryCache.Set(key, sortedList);
                 return sortedList.Count > 0;
             }
             else
             {
                 data.Add(member, score);
-                memoryCache.Set(key, data);
+                this.memoryCache.Set(key, data);
                 return data.Count > 0;
             }
         }
@@ -71,7 +128,7 @@ namespace YuanRateLimiter.Cache
         /// <param name="key">Key</param>
         public void DelKey(string key)
         {
-            memoryCache.Remove(key);
+            this.memoryCache.Remove(key);
         }
 
         /// <summary>
@@ -82,7 +139,18 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public T Get<T>(string key)
         {
-            return memoryCache.Get<T>(key);
+            return this.memoryCache.Get<T>(key);
+        }
+
+        /// <summary>
+        /// 获取List
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <returns></returns>
+        public List<T> ListGetAll<T>(string key)
+        {
+            return this.memoryCache.Get<List<T>>(key);
         }
 
         /// <summary>
@@ -94,7 +162,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public double GetSortSet<T>(string key, T member)
         {
-            var data = memoryCache.Get<SortedList<T, double>>(key);
+            var data = this.memoryCache.Get<SortedList<T, double>>(key);
             if (data != null && data.ContainsKey(member))
             {
                 return data[member];
@@ -113,7 +181,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public double Decrement(string key, double value)
         {
-            return memoryCache.Decrement(key, value);
+            return this.memoryCache.Decrement(key, value);
         }
 
         /// <summary>
@@ -124,7 +192,28 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public double Increment(string key, double value)
         {
-            return memoryCache.Increment(key, value);
+            return this.memoryCache.Increment(key, value);
+        }
+
+        /// <summary>
+        /// 缓存 Key 是否存在
+        /// </summary>
+        /// <param name="key">Key</param>
+        /// <returns></returns>
+        public bool ExistsKey(string key)
+        {
+            return this.memoryCache.ContainsKey(key);
+        }
+
+        /// <summary>
+        /// 设置缓存Key的过期时间
+        /// </summary>
+        /// <param name="key">Key</param>
+        /// <param name="expire">过期时间</param>
+        /// <returns></returns>
+        public bool SetExpires(string key, TimeSpan expire)
+        {
+            return this.memoryCache.SetExpire(key, expire);
         }
     }
 }

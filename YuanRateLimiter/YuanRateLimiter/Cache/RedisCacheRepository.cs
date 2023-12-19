@@ -13,12 +13,24 @@ namespace YuanRateLimiter.Cache
     /// </summary>
     internal class RedisCacheRepository : ICacheService
     {
-        private readonly ISimpleRedis RedisClient;
-        public ISimpleRedis Client => RedisClient;
+        private readonly ISimpleRedis redisClient;
+        public ISimpleRedis Client => redisClient;
 
         public RedisCacheRepository(ISimpleRedis redisClient)
         {
-            RedisClient = redisClient;
+            this.redisClient = redisClient;
+        }
+
+        /// <summary>
+        /// 添加一条缓存数据
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <param name="value">Value</param>
+        /// <returns></returns>
+        public bool Set<T>(string key, T value)
+        {
+            return this.redisClient.Set<T>(key, value);
         }
 
         /// <summary>
@@ -27,18 +39,46 @@ namespace YuanRateLimiter.Cache
         /// <typeparam name="T">序列化类型</typeparam>
         /// <param name="key">Key</param>
         /// <param name="value">Value</param>
-        /// <param name="expires">过期时间（单位：毫秒）</param>
+        /// <param name="expires">过期时间</param>
         /// <returns></returns>
-        public bool Set<T>(string key, T value, long expires = -1)
+        public bool Set<T>(string key, T value, TimeSpan expire)
         {
-            if (expires == -1)
-            {
-                return RedisClient.Set<T>(key, value);
-            }
-            else
-            {
-                return RedisClient.Set<T>(key, value, TimeSpan.FromMilliseconds(expires));
-            }
+            return this.redisClient.Set<T>(key, value, expire);
+        }
+
+        /// <summary>
+        /// 添加一条数据到List
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <param name="value">Value</param>
+        public void ListAdd<T>(string key, T value)
+        {
+            this.redisClient.ListAdd<T>(key, value);
+        }
+
+        /// <summary>
+        /// List（头）左推
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <param name="values">Value</param>
+        /// <returns></returns>
+        public int ListLeftPush<T>(string key, IEnumerable<T> values)
+        {
+            return this.redisClient.ListLeftPush<T>(key, values);
+        }
+
+        /// <summary>
+        /// List（尾）右推
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <param name="values">Value</param>
+        /// <returns></returns>
+        public int ListRightPush<T>(string key, IEnumerable<T> values)
+        {
+            return this.redisClient.ListRightPush<T>(key, values);
         }
 
         /// <summary>
@@ -51,7 +91,7 @@ namespace YuanRateLimiter.Cache
         /// <returns>添加行数</returns>
         public bool AddSortSet<T>(string key, T member, double score)
         {
-            return RedisClient.SortedSetAdd<T>(key, member, score) > 0;
+            return this.redisClient.SortedSetAdd<T>(key, member, score) > 0;
         }
 
         /// <summary>
@@ -60,7 +100,7 @@ namespace YuanRateLimiter.Cache
         /// <param name="key">Key</param>
         public void DelKey(string key)
         {
-            RedisClient.Remove(key);
+            this.redisClient.Remove(key);
         }
 
         /// <summary>
@@ -71,7 +111,18 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public T Get<T>(string key)
         {
-            return RedisClient.Get<T>(key);
+            return this.redisClient.Get<T>(key);
+        }
+
+        /// <summary>
+        /// 获取List
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <returns></returns>
+        public List<T> ListGetAll<T>(string key)
+        {
+            return this.redisClient.ListGetAll<T>(key);
         }
 
         /// <summary>
@@ -83,7 +134,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public double GetSortSet<T>(string key, T member)
         {
-            return RedisClient.GetFullRedis().GetSortedSet<T>(key).GetScore(member);
+            return this.redisClient.GetFullRedis().GetSortedSet<T>(key).GetScore(member);
         }
 
         /// <summary>
@@ -94,7 +145,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public double Decrement(string key, double value)
         {
-            return RedisClient.GetFullRedis().Decrement(key, value);
+            return this.redisClient.GetFullRedis().Decrement(key, value);
         }
 
         /// <summary>
@@ -105,7 +156,28 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public double Increment(string key, double value)
         {
-            return RedisClient.GetFullRedis().Increment(key, value);
+            return this.redisClient.GetFullRedis().Increment(key, value);
+        }
+
+        /// <summary>
+        /// 缓存 Key 是否存在
+        /// </summary>
+        /// <param name="key">Key</param>
+        /// <returns></returns>
+        public bool ExistsKey(string key)
+        {
+            return this.redisClient.ContainsKey(key);
+        }
+
+        /// <summary>
+        /// 设置缓存Key的过期时间
+        /// </summary>
+        /// <param name="key">Key</param>
+        /// <param name="expire">过期时间</param>
+        /// <returns></returns>
+        public bool SetExpires(string key, TimeSpan expire)
+        {
+            return this.redisClient.GetFullRedis().SetExpire(key, expire);
         }
     }
 }
