@@ -3,6 +3,7 @@ using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
 using YuanRateLimiter.Core.Interface;
+using YuanRateLimiter.Enum;
 
 /*
  * 类名：TokenBucket
@@ -14,17 +15,15 @@ namespace YuanRateLimiter.Core.TokenBucket
 {
     internal class TokenBucket : IRateLimiter
     {
-        private readonly ICacheService chcheService;
-        private readonly RateLimitingConfig config;
+        private readonly ICacheService cacheService;
+        private readonly RateLimiterConfig config;
         private readonly SemaphoreSlim semaphore = new(1, 1);
 
-        public TokenBucket(
-            ICacheService chcheService,
-            RateLimitingConfig config)
+        public TokenBucket(ICacheService cacheService, RateLimiterConfig config)
         {
-            this.chcheService = chcheService;
+            this.cacheService = cacheService;
             this.config = config;
-            if (string.IsNullOrEmpty(config.CacheKey)) config.CacheKey = CacheKey.TokenBucketStateKey;
+            if (string.IsNullOrEmpty(config.CacheKey)) config.CacheKey = CacheKey.RateLimiterCacheKey;
         }
 
         /// <summary>
@@ -36,35 +35,30 @@ namespace YuanRateLimiter.Core.TokenBucket
         {
             int tokensPerSecond = 0;
             int capacity = 0;
-            // 是否开启全接口限流
-            if (config.RateLimitingRule.IsAllApiRateLimiting)
+            switch (config.RateLimiterRule.RateLimiterLogLevel)
             {
-                tokensPerSecond = config.RateLimitingRule.IsAllApiFlowLimitingRule.TokensPerSecond;
-                capacity = config.RateLimitingRule.IsAllApiFlowLimitingRule.Capacity;
-            }
-            // Method 级别限流
-            if (config.RateLimitingRule.RateLimitingLogLevel!.Equals("Method"))
-            {
-                var methodFlowLimitingRules = config.RateLimitingRule.MethodFlowLimitingRules;
-                var methods = methodFlowLimitingRules.Where(t => t.Method.Equals(context.Request.Method)).ToList();
-                if (methods.Count <= 0)
-                {
-                    return true;
-                }
-                tokensPerSecond = methods[0].TokensPerSecond;
-                capacity = methods[0].Capacity;
-            }
-            // Api 级别限流
-            if (config.RateLimitingRule.RateLimitingLogLevel!.Equals("Api"))
-            {
-                var apiFlowLimitingRules = config.RateLimitingRule.ApiFlowLimitingRules;
-                var apis = apiFlowLimitingRules.Where(t => t.Path.Equals(context.Request.Path.Value)).ToList();
-                if (apis.Count <= 0)
-                {
-                    return true;
-                }
-                tokensPerSecond = apis[0].TokensPerSecond;
-                capacity = apis[0].Capacity;
+                case RateLimitingLevel.All:  // 全接口限流
+                    tokensPerSecond = config.RateLimiterRule.AllFlowLimiterRule.RateLimit;
+                    capacity = config.RateLimiterRule.AllFlowLimiterRule.Capacity;
+                    break;
+                case RateLimitingLevel.Method:  // Method 级别限流
+                    var methodFlowLimitingRules = config.RateLimiterRule.MethodFlowLimiterRules;
+                    var methods = methodFlowLimitingRules.Where(t => t.Method.Equals(context.Request.Method)).ToList();
+                    if (methods.Count <= 0) return true;
+                    tokensPerSecond = methods[0].RateLimit;
+                    capacity = methods[0].Capacity;
+                    break;
+                case RateLimitingLevel.Action:  // Action 级别限流
+                    var actionFlowLimitingRules = config.RateLimiterRule.ActionFlowLimiterRules;
+                    var apis = actionFlowLimitingRules.Where(t => t.Path.Equals(context.Request.Path.Value)).ToList();
+                    if (apis.Count <= 0) return true;
+                    tokensPerSecond = apis[0].RateLimit;
+                    capacity = apis[0].Capacity;
+                    break;
+                default:  // 默认全接口限流
+                    tokensPerSecond = config.RateLimiterRule.AllFlowLimiterRule.RateLimit;
+                    capacity = config.RateLimiterRule.AllFlowLimiterRule.Capacity;
+                    break;
             }
             return await ConsumeToken(tokensPerSecond, capacity);
         }
@@ -100,13 +94,13 @@ namespace YuanRateLimiter.Core.TokenBucket
             await semaphore.WaitAsync();
             try
             {
-                var data = chcheService.Get<TokenBucketState>(config.CacheKey);
+                var data = this.cacheService.Get<TokenBucketState>(config.CacheKey);
                 var tokenBucketState = new TokenBucketState
                 {
                     CurrentTokens = Math.Max(0, data.CurrentTokens - 1),
                     LastRefillTimestamp = data.LastRefillTimestamp,
                 };
-                chcheService.Set(config.CacheKey, tokenBucketState);
+                this.cacheService.Set(config.CacheKey, tokenBucketState);
             }
             finally
             {
@@ -125,7 +119,7 @@ namespace YuanRateLimiter.Core.TokenBucket
         {
             double currentTokens = await GetCurrentTokens(capacity);
             double updatedTokens = Math.Min(capacity, currentTokens + newTokens);
-            chcheService.Set(config.CacheKey, new TokenBucketState
+            this.cacheService.Set(config.CacheKey, new TokenBucketState
             {
                 CurrentTokens = updatedTokens,
                 LastRefillTimestamp = now,
@@ -138,7 +132,7 @@ namespace YuanRateLimiter.Core.TokenBucket
         /// <returns></returns>
         private async Task<double> GetCurrentTokens(int capacity)
         {
-            var data = chcheService.Get<TokenBucketState>(config.CacheKey);
+            var data = this.cacheService.Get<TokenBucketState>(config.CacheKey);
             return await Task.FromResult(data?.CurrentTokens ?? capacity);
         }
 
@@ -148,7 +142,7 @@ namespace YuanRateLimiter.Core.TokenBucket
         /// <returns></returns>
         private async Task<long> GetLastRefillTimestamp()
         {
-            var data = chcheService.Get<TokenBucketState>(config.CacheKey);
+            var data = this.cacheService.Get<TokenBucketState>(config.CacheKey);
             return await Task.FromResult(data?.LastRefillTimestamp ?? 0);
         }
     }
