@@ -100,7 +100,7 @@ namespace YuanRateLimiter.Core.TokenBucket
                     CurrentTokens = Math.Max(0, data.CurrentTokens - 1),
                     LastRefillTimestamp = data.LastRefillTimestamp,
                 };
-                this.cacheService.Set(config.CacheKey, tokenBucketState);
+                this.cacheService.Set(config.CacheKey, tokenBucketState, TimeSpan.FromMinutes(5));
             }
             finally
             {
@@ -123,7 +123,7 @@ namespace YuanRateLimiter.Core.TokenBucket
             {
                 CurrentTokens = updatedTokens,
                 LastRefillTimestamp = now,
-            });
+            }, TimeSpan.FromMinutes(5));
         }
 
         /// <summary>
