@@ -27,7 +27,7 @@ namespace YuanRateLimiter.Cache
         /// <typeparam name="T">序列化类型</typeparam>
         /// <param name="key">Key</param>
         /// <param name="value">Value</param>
-        /// <param name="expires">过期时间（单位：秒）</param>
+        /// <param name="expires">过期时间（单位：毫秒）</param>
         /// <returns></returns>
         public bool Set<T>(string key, T value, long expires = -1)
         {
@@ -37,7 +37,7 @@ namespace YuanRateLimiter.Cache
             }
             else
             {
-                return RedisClient.Set<T>(key, value, TimeSpan.FromSeconds(expires));
+                return RedisClient.Set<T>(key, value, TimeSpan.FromMilliseconds(expires));
             }
         }
 
