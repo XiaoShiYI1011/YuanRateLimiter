@@ -11,6 +11,6 @@ namespace YuanRateLimiter.Const
         /// <summary>
         /// 令牌桶Key
         /// </summary>
-        public const string TokenBucketStateKey = "TokenBucketState";
+        public const string RateLimiterCacheKey = "RateLimiterKey";
     }
 }
