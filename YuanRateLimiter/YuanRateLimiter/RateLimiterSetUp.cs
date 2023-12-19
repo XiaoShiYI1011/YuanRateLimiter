@@ -29,7 +29,7 @@ namespace YuanRateLimiter
         public static void AddRateLimiterSetUp(this IServiceCollection services, string redisConnSrt = null)
         {
             var serviceProvider = services.BuildServiceProvider();
-            RateLimitingConfig rateLimitingConfig = serviceProvider.GetRequiredService<RateLimitingConfig>();
+            RateLimiterConfig rateLimitingConfig = serviceProvider.GetRequiredService<RateLimiterConfig>();
             RegisterRateLimiterServices(services, redisConnSrt, rateLimitingConfig);
         }
 
@@ -41,12 +41,12 @@ namespace YuanRateLimiter
         /// <param name="config"></param>
         public static void AddRateLimiterSetUp(
             this IServiceCollection services, 
-            Func<RateLimitingConfig, RateLimitingConfig> config, 
+            Func<RateLimiterConfig, RateLimiterConfig> config, 
             string redisConnSrt = null)
         {
-            services.AddSingleton(config(new RateLimitingConfig()));
+            services.AddSingleton(config(new RateLimiterConfig()));
             var serviceProvider = services.BuildServiceProvider();
-            RateLimitingConfig rateLimitingConfig = serviceProvider.GetRequiredService<RateLimitingConfig>();
+            RateLimiterConfig rateLimitingConfig = serviceProvider.GetRequiredService<RateLimiterConfig>();
             RegisterRateLimiterServices(services, redisConnSrt, rateLimitingConfig);
         }
 
@@ -59,19 +59,19 @@ namespace YuanRateLimiter
         private static void RegisterRateLimiterServices(
             IServiceCollection services, 
             string redisConnSrt, 
-            RateLimitingConfig rateLimitingConfig)
+            RateLimiterConfig rateLimitingConfig)
         {
             switch (rateLimitingConfig.RateLimiterModel)
             {
                 case RateLimiterModel.TokenBucket:  // 令牌桶限流
                     services.AddSingleton<IRateLimiter, TokenBucket>();
                     break;
-                case RateLimiterModel.LeakBucket: // 漏桶限流
-                    services.AddSingleton<IRateLimiter, LeakBucket>();
-                    break;
-                case RateLimiterModel.SlidingWindow:  // 滑动窗口限流
-                    services.AddSingleton<IRateLimiter, SlidingWindow>();
-                    break;
+                //case RateLimiterModel.LeakBucket: // 漏桶限流
+                //    services.AddSingleton<IRateLimiter, LeakBucket>();
+                //    break;
+                //case RateLimiterModel.SlidingWindow:  // 滑动窗口限流
+                //    services.AddSingleton<IRateLimiter, SlidingWindow>();
+                //    break;
                 default:  // 默认令牌桶限流
                     services.AddSingleton<IRateLimiter, TokenBucket>();
                     break;
@@ -93,9 +93,6 @@ namespace YuanRateLimiter
         /// </summary>
         /// <param name="builder"></param>
         /// <returns></returns>
-        public static IApplicationBuilder UseRateLimitMiddleware(this IApplicationBuilder builder)
-        {
-            return builder.UseMiddleware<RateLimitingMiddleware>();
-        }
+        public static IApplicationBuilder UseRateLimitMiddleware(this IApplicationBuilder builder) => builder.UseMiddleware<RateLimiterMiddleware>();
     }
 }
