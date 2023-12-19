@@ -5,7 +5,7 @@ using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Util;
 
 /*
- * 类名：RateLimitingMiddleware
+ * 类名：RateLimiterMiddleware
  * 描述：限流中间件
  * 创 建 者：十一 
  * 创建时间：2023/12/15 21:45:07 
@@ -15,18 +15,18 @@ namespace YuanRateLimiter.Middleware
     /// <summary>
     /// 限流中间件
     /// </summary>
-    internal class RateLimitingMiddleware
+    internal class RateLimiterMiddleware
     {
         private readonly RequestDelegate next;
         private readonly IRateLimiter rateLimiter;
-        private readonly RateLimitingConfig config;
-        private readonly ILogger<RateLimitingMiddleware> logger;
+        private readonly RateLimiterConfig config;
+        private readonly ILogger<RateLimiterMiddleware> logger;
 
-        public RateLimitingMiddleware(
+        public RateLimiterMiddleware(
             RequestDelegate next,
             IRateLimiter rateLimiter,
-            RateLimitingConfig config,
-            ILogger<RateLimitingMiddleware> logger)
+            RateLimiterConfig config,
+            ILogger<RateLimiterMiddleware> logger)
         {
             this.next = next;
             this.rateLimiter = rateLimiter;
@@ -37,7 +37,7 @@ namespace YuanRateLimiter.Middleware
         public async Task InvokeAsync(HttpContext context)
         {
             // 是否开启限流
-            if (!config.EnableRateLimiting)
+            if (!config.EnableRateLimiter)
             {
                 await this.next(context);
                 return;
