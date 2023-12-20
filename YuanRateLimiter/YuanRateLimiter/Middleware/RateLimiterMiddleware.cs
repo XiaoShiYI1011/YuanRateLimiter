@@ -47,7 +47,7 @@ namespace YuanRateLimiter.Middleware
                 context.Response.StatusCode = config.HttpStatusCode;
                 context.Response.ContentType = "text/plain";
                 await context.Response.WriteAsync(config.LimitingMessage);
-                logger.LogWarning($"{DateTime.Now}：接口已限流 ==> {context.Request.Path.Value}\n请求IP ==> {IPUtil.GetClientIPv4(context)}");
+                logger.LogWarning($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss:fff")}：接口已限流 ==> {context.Request.Path.Value}\n请求IP ==> {IPUtil.GetClientIPv4(context)}");
                 return;
             }
             await this.next(context);
