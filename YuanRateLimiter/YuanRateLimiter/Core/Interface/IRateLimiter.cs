@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace YuanRateLimiter.Core.Interface
 {
-    public interface IRateLimiter
+    public interface IRateLimiter : IDisposable
     {
         /// <summary>
         /// 检查限流
