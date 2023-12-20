@@ -15,5 +15,9 @@ namespace YuanRateLimiter.Core.SlidingWindow
         {
             throw new NotImplementedException();
         }
+
+        public void Dispose()
+        {
+        }
     }
 }
