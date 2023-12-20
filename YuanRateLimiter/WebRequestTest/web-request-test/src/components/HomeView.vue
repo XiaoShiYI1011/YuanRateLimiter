@@ -51,7 +51,7 @@ export default {
                     <el-input v-model="requestType"></el-input>
                 </div>
                 <div>
-                    <p>请求速率：</p>
+                    <p>请求速率（每秒多少个请求）：</p>
                     <el-input v-model="requestRate"></el-input>
                 </div>
                 <div>
