@@ -18,12 +18,18 @@ namespace YuanRateLimiter.Core.TokenBucket
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
         private readonly SemaphoreSlim semaphore = new(1, 1);
+        private readonly Timer timer;
+        private bool disposed = false;
+        private int bucketSize;
+        private int rateLimit;
 
         public TokenBucket(ICacheService cacheService, RateLimiterConfig config)
         {
             this.cacheService = cacheService;
             this.config = config;
             if (string.IsNullOrEmpty(config.CacheKey)) config.CacheKey = CacheKey.RateLimiterCacheKey;
+            timer = new Timer(async _ => await GenerateToken(), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+            this.cacheService.ListAdd<string>(config.CacheKey, DateTimeOffset.Now.ToUnixTimeSeconds().ToString());
         }
 
         /// <summary>
@@ -33,74 +39,48 @@ namespace YuanRateLimiter.Core.TokenBucket
         /// <returns></returns>
         public async Task<bool> CheckRateLimit(HttpContext context)
         {
-            int tokensPerSecond = 0;
-            int capacity = 0;
             switch (config.RateLimiterRule.RateLimiterLogLevel)
             {
                 case RateLimitingLevel.All:  // 全接口限流
-                    tokensPerSecond = config.RateLimiterRule.AllFlowLimiterRule.RateLimit;
-                    capacity = config.RateLimiterRule.AllFlowLimiterRule.Capacity;
+                    rateLimit = config.RateLimiterRule.AllFlowLimiterRule.RateLimit;
+                    bucketSize = config.RateLimiterRule.AllFlowLimiterRule.Capacity;
                     break;
                 case RateLimitingLevel.Method:  // Method 级别限流
                     var methodFlowLimitingRules = config.RateLimiterRule.MethodFlowLimiterRules;
                     var methods = methodFlowLimitingRules.Where(t => t.Method.Equals(context.Request.Method)).ToList();
                     if (methods.Count <= 0) return true;
-                    tokensPerSecond = methods[0].RateLimit;
-                    capacity = methods[0].Capacity;
+                    rateLimit = methods[0].RateLimit;
+                    bucketSize = methods[0].Capacity;
                     break;
                 case RateLimitingLevel.Action:  // Action 级别限流
                     var actionFlowLimitingRules = config.RateLimiterRule.ActionFlowLimiterRules;
                     var apis = actionFlowLimitingRules.Where(t => t.Path.Equals(context.Request.Path.Value)).ToList();
                     if (apis.Count <= 0) return true;
-                    tokensPerSecond = apis[0].RateLimit;
-                    capacity = apis[0].Capacity;
+                    rateLimit = apis[0].RateLimit;
+                    bucketSize = apis[0].Capacity;
                     break;
                 default:  // 默认全接口限流
-                    tokensPerSecond = config.RateLimiterRule.AllFlowLimiterRule.RateLimit;
-                    capacity = config.RateLimiterRule.AllFlowLimiterRule.Capacity;
+                    rateLimit = config.RateLimiterRule.AllFlowLimiterRule.RateLimit;
+                    bucketSize = config.RateLimiterRule.AllFlowLimiterRule.Capacity;
                     break;
             }
-            return await ConsumeToken(tokensPerSecond, capacity);
+            return await ConsumeToken();
         }
 
         /// <summary>
-        /// 消耗令牌
-        /// </summary>
-        /// <param name="tokensPerSecond">每秒产生的令牌数量</param>
-        /// <param name="capacity">令牌桶容量</param>
-        /// <returns></returns>
-        private async Task<bool> ConsumeToken(int tokensPerSecond, int capacity)
-        {
-            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            long lastRefillTimestamp = await GetLastRefillTimestamp();
-            long elapsedTime = now - lastRefillTimestamp;
-            long newTokens = elapsedTime * tokensPerSecond;
-            await RefillTokens(now, newTokens, capacity);
-            double currentTokens = await GetCurrentTokens(capacity);
-            if (currentTokens >= 1)
-            {
-                await DecrementToken();
-                return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// 减少令牌
+        /// 消耗令牌（请求到达，拿走一个令牌）
         /// </summary>
         /// <returns></returns>
-        private async Task DecrementToken()
+        private async Task<bool> ConsumeToken()
         {
             await semaphore.WaitAsync();
             try
             {
-                var data = this.cacheService.Get<TokenBucketState>(config.CacheKey);
-                var tokenBucketState = new TokenBucketState
-                {
-                    CurrentTokens = Math.Max(0, data.CurrentTokens - 1),
-                    LastRefillTimestamp = data.LastRefillTimestamp,
-                };
-                this.cacheService.Set(config.CacheKey, tokenBucketState, TimeSpan.FromMinutes(5));
+                var currentBucket = this.cacheService.ListGetAll<string>(config.CacheKey);
+                if (currentBucket.Count == 0) return false;  // 桶中无令牌，拒绝请求
+                var getToken = this.cacheService.ListLeftPop<string>(config.CacheKey);
+                if (string.IsNullOrEmpty(getToken)) return false;
+                return true;
             }
             finally
             {
@@ -109,41 +89,40 @@ namespace YuanRateLimiter.Core.TokenBucket
         }
 
         /// <summary>
-        /// 填充令牌
+        /// 生成令牌（固定速率生成一定量的令牌）
         /// </summary>
-        /// <param name="now">当前时间戳</param>
-        /// <param name="newTokens">新产生的令牌数量</param>
-        /// <param name="capacity">令牌桶容量</param>
         /// <returns></returns>
-        private async Task RefillTokens(long now, double newTokens, int capacity)
+        private async Task GenerateToken()
         {
-            double currentTokens = await GetCurrentTokens(capacity);
-            double updatedTokens = Math.Min(capacity, currentTokens + newTokens);
-            this.cacheService.Set(config.CacheKey, new TokenBucketState
+            await semaphore.WaitAsync();
+            try
             {
-                CurrentTokens = updatedTokens,
-                LastRefillTimestamp = now,
-            }, TimeSpan.FromMinutes(5));
+                for (int i = 0; i < rateLimit; i++)  // 一秒加几个
+                {
+                    var currentBucket = this.cacheService.ListGetAll<string>(config.CacheKey);
+                    if (currentBucket.Count != bucketSize)  // 桶没装满才加
+                    {
+                        this.cacheService.ListAdd<string>(config.CacheKey, DateTimeOffset.Now.ToUnixTimeSeconds().ToString());
+                    }
+                }
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
 
         /// <summary>
-        /// 获取当前令牌数量
+        /// 销毁
         /// </summary>
-        /// <returns></returns>
-        private async Task<double> GetCurrentTokens(int capacity)
+        public void Dispose()
         {
-            var data = this.cacheService.Get<TokenBucketState>(config.CacheKey);
-            return await Task.FromResult(data?.CurrentTokens ?? capacity);
-        }
-
-        /// <summary>
-        /// 获取最后填充时间
-        /// </summary>
-        /// <returns></returns>
-        private async Task<long> GetLastRefillTimestamp()
-        {
-            var data = this.cacheService.Get<TokenBucketState>(config.CacheKey);
-            return await Task.FromResult(data?.LastRefillTimestamp ?? 0);
+            if (!disposed)
+            {
+                this.timer?.Dispose();
+                this.cacheService.DelKey(config.CacheKey);
+                disposed = true;
+            }
         }
     }
 }
