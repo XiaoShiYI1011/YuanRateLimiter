@@ -66,9 +66,9 @@ namespace YuanRateLimiter
                 case RateLimiterModel.TokenBucket:  // 令牌桶限流
                     services.AddSingleton<IRateLimiter, TokenBucket>();
                     break;
-                //case RateLimiterModel.LeakBucket: // 漏桶限流
-                //    services.AddSingleton<IRateLimiter, LeakBucket>();
-                //    break;
+                case RateLimiterModel.LeakBucket: // 漏桶限流
+                    services.AddSingleton<IRateLimiter, LeakBucket>();
+                    break;
                 //case RateLimiterModel.SlidingWindow:  // 滑动窗口限流
                 //    services.AddSingleton<IRateLimiter, SlidingWindow>();
                 //    break;
