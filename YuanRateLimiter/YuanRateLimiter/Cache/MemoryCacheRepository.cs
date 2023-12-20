@@ -50,8 +50,9 @@ namespace YuanRateLimiter.Cache
         /// <param name="value"></param>
         public void ListAdd<T>(string key, T value)
         {
-            var list = new List<T> { value };
-            this.memoryCache.Set(key, list);
+            var data = Get<List<T>>(key) ?? new List<T>();
+            data.Add(value);
+            this.memoryCache.Set(key, data);
         }
 
         /// <summary>
@@ -95,40 +96,50 @@ namespace YuanRateLimiter.Cache
         }
 
         /// <summary>
-        /// 添加一条数据到有序集合
-        /// </summary>
-        /// <typeparam name="T">序列化类型</typeparam>
-        /// <param name="key">Key</param>
-        /// <param name="member">元素</param>
-        /// <param name="score">分数</param>
-        /// <returns>添加行数</returns>
-        public bool AddSortSet<T>(string key, T member, double score)
-        {
-            var data = this.memoryCache.Get<SortedList<T, double>>(key);
-            if (data == null)
-            {
-                var sortedList = new SortedList<T, double>
-                {
-                    { member, score }
-                };
-                this.memoryCache.Set(key, sortedList);
-                return sortedList.Count > 0;
-            }
-            else
-            {
-                data.Add(member, score);
-                this.memoryCache.Set(key, data);
-                return data.Count > 0;
-            }
-        }
-
-        /// <summary>
         /// 根据 Key 删除缓存数据
         /// </summary>
         /// <param name="key">Key</param>
         public void DelKey(string key)
         {
             this.memoryCache.Remove(key);
+        }
+
+        /// <summary>
+        /// List（头）左删，返回最左边一个元素
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <returns></returns>
+        public T ListLeftPop<T>(string key)
+        {
+            var list = Get<List<T>>(key);
+            if (list != null && list.Count > 0)
+            {
+                var first = list[0];
+                list.RemoveAt(0);
+                Set(key, list);
+                return first;
+            }
+            return default;
+        }
+
+        /// <summary>
+        /// List（尾）右删，返回最右边一个元素
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <returns></returns>
+        public T ListRightPop<T>(string key)
+        {
+            var list = Get<List<T>>(key);
+            if (list != null && list.Count > 0)
+            {
+                var last = list[^1];
+                list.RemoveAt(list.Count - 1);
+                Set(key, list);
+                return last;
+            }
+            return default;
         }
 
         /// <summary>
@@ -150,27 +161,9 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public List<T> ListGetAll<T>(string key)
         {
-            return this.memoryCache.Get<List<T>>(key);
-        }
-
-        /// <summary>
-        /// 根据有序集合的 key 和元素，获取有序集合的分数
-        /// </summary>
-        /// <typeparam name="T">序列化类型</typeparam>
-        /// <param name="key">Key</param>
-        /// <param name="member">元素</param>
-        /// <returns></returns>
-        public double GetSortSet<T>(string key, T member)
-        {
-            var data = this.memoryCache.Get<SortedList<T, double>>(key);
-            if (data != null && data.ContainsKey(member))
-            {
-                return data[member];
-            }
-            else
-            {
-                return 0;
-            }
+            var data = this.memoryCache.Get<List<T>>(key);
+            if (data == null) return new List<T>();
+            return data;
         }
 
         /// <summary>

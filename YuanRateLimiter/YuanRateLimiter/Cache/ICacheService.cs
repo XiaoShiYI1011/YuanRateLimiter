@@ -54,20 +54,26 @@ namespace YuanRateLimiter.Cache
         int ListRightPush<T>(string key, IEnumerable<T> values);
 
         /// <summary>
-        /// 添加一条数据到有序集合
-        /// </summary>
-        /// <typeparam name="T">序列化类型</typeparam>
-        /// <param name="key">Key</param>
-        /// <param name="member">元素</param>
-        /// <param name="score">分数</param>
-        /// <returns>添加行数</returns>
-        bool AddSortSet<T>(string key, T member, double score);
-
-        /// <summary>
         /// 根据 Key 删除缓存数据
         /// </summary>
         /// <param name="key">Key</param>
         void DelKey(string key);
+
+        /// <summary>
+        /// List（头）左删，返回最左边一个元素
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <returns></returns>
+        T ListLeftPop<T>(string key);
+
+        /// <summary>
+        /// List（尾）右删，返回最右边一个元素
+        /// </summary>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <returns></returns>
+        T ListRightPop<T>(string key);
 
         /// <summary>
         /// 获取缓存数据
@@ -84,15 +90,6 @@ namespace YuanRateLimiter.Cache
         /// <param name="key">Key</param>
         /// <returns></returns>
         List<T> ListGetAll<T>(string key);
-
-        /// <summary>
-        /// 根据有序集合的 key 和元素，获取有序集合的分数
-        /// </summary>
-        /// <typeparam name="T">序列化类型</typeparam>
-        /// <param name="key">Key</param>
-        /// <param name="member">元素</param>
-        /// <returns></returns>
-        double GetSortSet<T>(string key, T member);
 
         /// <summary>
         /// 递减，原子操作，乘以100后按整数操作
