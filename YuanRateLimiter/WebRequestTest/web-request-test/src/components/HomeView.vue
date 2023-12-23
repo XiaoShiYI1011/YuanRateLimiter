@@ -13,7 +13,11 @@ export default {
             requestUrl: "http://localhost:5155/api/Test/Test01",
             requestType: "GET",
             requestRate: 1,
+            imitateIp: "171.113.42.210",
             intervalId: null,
+            count: 0,
+            successfulRequests: 0,
+            failedRequests: 0
         }
     },
     methods: {
@@ -22,12 +26,16 @@ export default {
                 for (let i = 0; i < this.requestRate; i++) {
                     axios({
                         url: this.requestUrl,
-                        method: this.requestType
+                        method: this.requestType,
+                        headers: {"X-Forwarded-For": this.imitateIp},
                     }).then(res => {
+                        this.successfulRequests++;
                         console.log(res);
                     }).catch(error => {
+                        this.failedRequests++;
                         console.error(error);
                     });
+                    this.count++;
                 }
             }, 1000);
         },
@@ -51,8 +59,17 @@ export default {
                     <el-input v-model="requestType"></el-input>
                 </div>
                 <div>
+                    <p>模拟Ip：</p>
+                    <el-input v-model="imitateIp"></el-input>
+                </div>
+                <div>
                     <p>请求速率（每秒多少个请求）：</p>
                     <el-input v-model="requestRate"></el-input>
+                </div>
+                <div style="text-align: center">
+                    <el-tag>轮次：{{ count }}</el-tag>&nbsp;
+                    <el-tag type="success">成功：{{ successfulRequests }}</el-tag>&nbsp;
+                    <el-tag type="danger">失败：{{ failedRequests }}</el-tag>
                 </div>
                 <div>
                     <div style="text-align: center; margin-top: 20px">
