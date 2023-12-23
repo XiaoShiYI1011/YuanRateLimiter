@@ -120,6 +120,7 @@ namespace YuanRateLimiter.Core.TokenBucket
             if (!disposed)
             {
                 this.timer?.Dispose();
+                semaphore.Dispose();
                 this.cacheService.DelKey(config.CacheKey);
                 disposed = true;
             }
