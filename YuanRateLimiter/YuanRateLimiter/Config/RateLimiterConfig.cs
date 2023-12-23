@@ -12,9 +12,12 @@ namespace YuanRateLimiter.Config
     {
         public bool EnableRateLimiter { get; set; }
         public int HttpStatusCode { get; set; } = 429;
-        public string LimitingMessage { get; set; } = "Request restricted, you are accessing too frequently!";
+        public string LimitingMessage { get; set; } = "The request is too frequent, please try again later.";
         public string CacheKey { get; set; } = "RateLimiterKey";
         public RateLimiterModel RateLimiterModel { get; set; } = RateLimiterModel.TokenBucket;
+        public bool EnableIpLimiter { get; set; } = false;
+        public string[] IpWhiteList { get; set; }
+        public string[] IpBlackList { get; set; }
         public RateLimiterRule RateLimiterRule { get; set; }
     }
 
