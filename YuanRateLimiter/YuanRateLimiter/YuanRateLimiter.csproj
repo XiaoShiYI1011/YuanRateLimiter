@@ -6,7 +6,7 @@
 		<Title>YuanRateLimiter</Title>
 		<Authors>十一</Authors>
 		<Description>ASP.NET Core的限流中间件</Description>
-		<Version>2.0.0</Version>
+		<Version>2.1.0</Version>
 		<PackageProjectUrl>https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter</PackageProjectUrl>
 		<RepositoryType>git</RepositoryType>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
