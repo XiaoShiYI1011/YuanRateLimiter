@@ -109,6 +109,7 @@ namespace YuanRateLimiter.Core.LeakBucket
             if (!disposed)
             {
                 this.timer?.Dispose();
+                semaphore.Dispose();
                 this.cacheService.DelKey(config.CacheKey);
                 disposed = true;
             }
