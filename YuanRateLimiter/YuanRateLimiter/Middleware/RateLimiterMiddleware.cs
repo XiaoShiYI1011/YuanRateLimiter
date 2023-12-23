@@ -42,12 +42,27 @@ namespace YuanRateLimiter.Middleware
                 await this.next(context);
                 return;
             }
+            string requestIp = IPUtil.GetClientIPv4(context);
+            var isIpWhiteList = config.IpWhiteList.Where(i => i.Contains(requestIp)).Any();  // 白名单
+            if (isIpWhiteList) 
+            {
+                await this.next(context);
+                return;
+            }
+            var isIpBlackList = config.IpBlackList.Where(i => i.Contains(requestIp)).Any();  // 黑名单
+            if (isIpBlackList) 
+            {
+                context.Response.StatusCode = 403;
+                context.Response.ContentType = "text/plain;charset=utf-8";
+                await context.Response.WriteAsync("当前Ip被禁止访问");
+                return;
+            }
             if (!await rateLimiter.CheckRateLimit(context))
             {
                 context.Response.StatusCode = config.HttpStatusCode;
-                context.Response.ContentType = "text/plain";
+                context.Response.ContentType = "text/plain;charset=utf-8";
                 await context.Response.WriteAsync(config.LimitingMessage);
-                logger.LogWarning($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss:fff")}：接口已限流 ==> {context.Request.Path.Value}\n请求IP ==> {IPUtil.GetClientIPv4(context)}");
+                logger.LogWarning($"{DateTime.Now:yyyy-MM-dd HH:mm:ss:fff}：接口已限流 ==> {context.Request.Path.Value}\n请求IP ==> {IPUtil.GetClientIPv4(context)}");
                 return;
             }
             await this.next(context);
