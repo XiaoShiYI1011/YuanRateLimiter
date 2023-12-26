@@ -1,4 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
@@ -13,11 +17,14 @@ using YuanRateLimiter.Enum;
  */
 namespace YuanRateLimiter.Core.LeakBucket
 {
+    /// <summary>
+    /// 漏桶算法
+    /// </summary>
     internal class LeakBucket : IRateLimiter
     {
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
-        private readonly SemaphoreSlim semaphore = new(1, 1);
+        private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
         private readonly Timer timer;
         private bool disposed = false;
         private int bucketSize;

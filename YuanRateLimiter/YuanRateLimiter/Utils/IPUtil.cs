@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http;
+using System.Linq;
 using System.Net;
 
 /*
@@ -7,7 +8,7 @@ using System.Net;
  * 创 建 者：十一 
  * 创建时间：2023/12/14 10:37:27 
  */
-namespace YuanRateLimiter.Util
+namespace YuanRateLimiter.Utils
 {
     /// <summary>
     /// IP 地址工具类

@@ -1,4 +1,7 @@
-﻿using SimpleRedis;
+﻿using NewLife.Caching;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 /*
  * 类名：RedisCacheRepository
@@ -13,10 +16,9 @@ namespace YuanRateLimiter.Cache
     /// </summary>
     internal class RedisCacheRepository : ICacheService
     {
-        private readonly ISimpleRedis redisClient;
-        public ISimpleRedis Client => redisClient;
+        private readonly FullRedis redisClient;
 
-        public RedisCacheRepository(ISimpleRedis redisClient)
+        public RedisCacheRepository(FullRedis redisClient)
         {
             this.redisClient = redisClient;
         }
@@ -30,7 +32,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public bool Set<T>(string key, T value)
         {
-            return this.redisClient.Set<T>(key, value);
+            return this.redisClient.Set(key, value);
         }
 
         /// <summary>
@@ -43,7 +45,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public bool Set<T>(string key, T value, TimeSpan expire)
         {
-            return this.redisClient.Set<T>(key, value, expire);
+            return this.redisClient.Set(key, value, expire);
         }
 
         /// <summary>
@@ -54,7 +56,7 @@ namespace YuanRateLimiter.Cache
         /// <param name="value">Value</param>
         public void ListAdd<T>(string key, T value)
         {
-            this.redisClient.ListAdd<T>(key, value);
+            this.redisClient.RPUSH(key, value);
         }
 
         /// <summary>
@@ -66,7 +68,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public int ListLeftPush<T>(string key, IEnumerable<T> values)
         {
-            return this.redisClient.ListLeftPush<T>(key, values);
+            return this.redisClient.LPUSH(key, values);
         }
 
         /// <summary>
@@ -78,7 +80,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public int ListRightPush<T>(string key, IEnumerable<T> values)
         {
-            return this.redisClient.ListRightPush<T>(key, values);
+            return this.redisClient.RPUSH(key, values);
         }
 
         /// <summary>
@@ -87,7 +89,7 @@ namespace YuanRateLimiter.Cache
         /// <param name="key">Key</param>
         public void DelKey(string key)
         {
-            this.redisClient.Remove(key);
+            redisClient.Remove(key);
         }
 
         /// <summary>
@@ -98,7 +100,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public T ListLeftPop<T>(string key)
         {
-            return this.redisClient.ListLeftPop<T>(key);
+            return this.redisClient.LPOP<T>(key);
         }
 
         /// <summary>
@@ -109,7 +111,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public T ListRightPop<T>(string key)
         {
-            return this.redisClient.ListRightPop<T>(key);
+            return this.redisClient.RPOP<T>(key);
         }
 
         /// <summary>
@@ -131,9 +133,8 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public List<T> ListGetAll<T>(string key)
         {
-            var existsKey = ExistsKey(key);
-            if (!existsKey) return new List<T>();
-            return this.redisClient.ListGetAll<T>(key);
+            IList<T> data = this.redisClient.GetList<T>(key);
+            return data?.ToList() ?? new List<T>();
         }
 
         /// <summary>
@@ -144,7 +145,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public double Decrement(string key, double value)
         {
-            return this.redisClient.GetFullRedis().Decrement(key, value);
+            return this.redisClient.Decrement(key, value);
         }
 
         /// <summary>
@@ -155,7 +156,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public double Increment(string key, double value)
         {
-            return this.redisClient.GetFullRedis().Increment(key, value);
+            return this.redisClient.Increment(key, value);
         }
 
         /// <summary>
@@ -176,7 +177,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public bool SetExpires(string key, TimeSpan expire)
         {
-            return this.redisClient.GetFullRedis().SetExpire(key, expire);
+            return this.redisClient.SetExpire(key, expire);
         }
     }
 }

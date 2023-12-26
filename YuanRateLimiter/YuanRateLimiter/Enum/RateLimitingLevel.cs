@@ -6,6 +6,9 @@
  */
 namespace YuanRateLimiter.Enum
 {
+    /// <summary>
+    /// 限流级别枚举
+    /// </summary>
     public enum RateLimitingLevel
     {
         /// <summary>

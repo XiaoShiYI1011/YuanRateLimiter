@@ -1,8 +1,11 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Core.Interface;
-using YuanRateLimiter.Util;
+using YuanRateLimiter.Utils;
 
 /*
  * 类名：RateLimiterMiddleware
@@ -44,13 +47,13 @@ namespace YuanRateLimiter.Middleware
             }
             string requestIp = IPUtil.GetClientIPv4(context);
             var isIpWhiteList = config.IpWhiteList.Where(i => i.Contains(requestIp)).Any();  // 白名单
-            if (isIpWhiteList) 
+            if (isIpWhiteList)
             {
                 await this.next(context);
                 return;
             }
             var isIpBlackList = config.IpBlackList.Where(i => i.Contains(requestIp)).Any();  // 黑名单
-            if (isIpBlackList) 
+            if (isIpBlackList)
             {
                 context.Response.StatusCode = 403;
                 context.Response.ContentType = "text/plain;charset=utf-8";

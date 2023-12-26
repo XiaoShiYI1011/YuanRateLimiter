@@ -1,12 +1,11 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using NewLife.Caching;
-using SimpleRedis;
+using System;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Core.LeakBucket;
-using YuanRateLimiter.Core.SlidingWindow;
 using YuanRateLimiter.Core.TokenBucket;
 using YuanRateLimiter.Enum;
 using YuanRateLimiter.Middleware;
@@ -40,8 +39,8 @@ namespace YuanRateLimiter
         /// <param name="redisConnSrt"></param>
         /// <param name="config"></param>
         public static void AddRateLimiterSetUp(
-            this IServiceCollection services, 
-            Func<RateLimiterConfig, RateLimiterConfig> config, 
+            this IServiceCollection services,
+            Func<RateLimiterConfig, RateLimiterConfig> config,
             string redisConnSrt = null)
         {
             services.AddSingleton(config(new RateLimiterConfig()));
@@ -57,18 +56,18 @@ namespace YuanRateLimiter
         /// <param name="redisConnSrt"></param>
         /// <param name="rateLimitingConfig"></param>
         private static void RegisterRateLimiterServices(
-            IServiceCollection services, 
-            string redisConnSrt, 
+            IServiceCollection services,
+            string redisConnSrt,
             RateLimiterConfig rateLimitingConfig)
         {
             switch (rateLimitingConfig.RateLimiterModel)
             {
                 case RateLimiterModel.TokenBucket:  // 令牌桶限流
-                    if(rateLimitingConfig.EnableIpLimiter) services.AddSingleton<IRateLimiter, IPTokenBucket>();
+                    if (rateLimitingConfig.EnableIpLimiter) services.AddSingleton<IRateLimiter, IPTokenBucket>();
                     else services.AddSingleton<IRateLimiter, TokenBucket>();
                     break;
                 case RateLimiterModel.LeakBucket: // 漏桶限流
-                    if(rateLimitingConfig.EnableIpLimiter) services.AddSingleton<IRateLimiter, IPLeakBucket>();
+                    if (rateLimitingConfig.EnableIpLimiter) services.AddSingleton<IRateLimiter, IPLeakBucket>();
                     else services.AddSingleton<IRateLimiter, LeakBucket>();
                     break;
                 //case RateLimiterModel.SlidingWindow:  // 滑动窗口限流
@@ -85,7 +84,12 @@ namespace YuanRateLimiter
             }
             else
             {
-                services.AddSimpleRedis(redisConnSrt);
+                services.AddSingleton(c =>
+                {
+                    FullRedis rds = new FullRedis();
+                    rds.Init(redisConnSrt);
+                    return rds;
+                });
                 services.AddSingleton<ICacheService, RedisCacheRepository>();
             }
         }

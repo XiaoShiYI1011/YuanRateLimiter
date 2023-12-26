@@ -1,10 +1,14 @@
 ﻿using Microsoft.AspNetCore.Http;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
 using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Enum;
-using YuanRateLimiter.Util;
+using YuanRateLimiter.Utils;
 
 /*
  * 类名：IPLeakBucket
@@ -14,12 +18,15 @@ using YuanRateLimiter.Util;
  */
 namespace YuanRateLimiter.Core.LeakBucket
 {
+    /// <summary>
+    /// IP漏桶
+    /// </summary>
     internal class IPLeakBucket : IRateLimiter
     {
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
-        private readonly SemaphoreSlim semaphore = new(1, 1);
-        private readonly Dictionary<string, SemaphoreSlim> ipSemaphores = new();
+        private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+        private readonly Dictionary<string, SemaphoreSlim> ipSemaphores = new Dictionary<string, SemaphoreSlim>();
         private readonly System.Timers.Timer timer;
         private bool disposed = false;
         private int bucketSize;
@@ -96,7 +103,8 @@ namespace YuanRateLimiter.Core.LeakBucket
             await semaphore.WaitAsync();
             try
             {
-                foreach (var ipAddress in ipSemaphores.Keys.ToList()) { 
+                foreach (var ipAddress in ipSemaphores.Keys.ToList())
+                {
                     for (int i = 0; i < rateLimit; i++)  // 一秒漏多少水
                     {
                         this.cacheService.ListLeftPop<long>(GetIpCacheKey(ipAddress));

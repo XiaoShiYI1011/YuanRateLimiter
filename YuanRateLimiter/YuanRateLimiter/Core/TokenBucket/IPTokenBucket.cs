@@ -1,10 +1,15 @@
 ﻿using Microsoft.AspNetCore.Http;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
 using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Enum;
-using YuanRateLimiter.Util;
+using YuanRateLimiter.Utils;
 
 /*
  * 类名：IPTokenBucket
@@ -14,12 +19,15 @@ using YuanRateLimiter.Util;
  */
 namespace YuanRateLimiter.Core.TokenBucket
 {
+    /// <summary>
+    /// IP令牌桶
+    /// </summary>
     internal class IPTokenBucket : IRateLimiter
     {
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
-        private readonly SemaphoreSlim semaphore = new(1, 1);
-        private readonly Dictionary<string, SemaphoreSlim> ipSemaphores = new();
+        private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+        private readonly Dictionary<string, SemaphoreSlim> ipSemaphores = new Dictionary<string, SemaphoreSlim>();
         private readonly System.Timers.Timer timer;
         private long generateTokenBucketDate;
         private bool disposed = false;

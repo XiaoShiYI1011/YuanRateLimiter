@@ -1,4 +1,6 @@
 ﻿using NewLife.Caching;
+using System;
+using System.Collections.Generic;
 
 /*
  * 类名：MemoryCacheRepository
@@ -8,9 +10,12 @@
  */
 namespace YuanRateLimiter.Cache
 {
-    internal class MemoryCacheRepository : ICacheService
+    /// <summary>
+    /// MemoryCache 仓储类
+    /// </summary>
+    public class MemoryCacheRepository : ICacheService
     {
-        public readonly MemoryCache memoryCache;
+        private readonly MemoryCache memoryCache;
 
         public MemoryCacheRepository(MemoryCache memoryCache)
         {
@@ -26,7 +31,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public bool Set<T>(string key, T value)
         {
-            return this.memoryCache.Set<T>(key, value);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -39,20 +44,18 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public bool Set<T>(string key, T value, TimeSpan expire)
         {
-            return this.memoryCache.Set<T>(key, value, expire);
+            throw new NotImplementedException();
         }
 
         /// <summary>
         /// 添加一条数据到List
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="key"></param>
-        /// <param name="value"></param>
+        /// <typeparam name="T">序列化类型</typeparam>
+        /// <param name="key">Key</param>
+        /// <param name="value">Value</param>
         public void ListAdd<T>(string key, T value)
         {
-            var data = Get<List<T>>(key) ?? new List<T>();
-            data.Add(value);
-            this.memoryCache.Set(key, data);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -64,15 +67,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public int ListLeftPush<T>(string key, IEnumerable<T> values)
         {
-            var data = Get<List<T>>(key) ?? new List<T>();
-            int count = 0;
-            foreach (var value in values)
-            {
-                count++;
-                data.Insert(0, value);
-            }
-            Set(key, data);
-            return count;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -84,15 +79,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public int ListRightPush<T>(string key, IEnumerable<T> values)
         {
-            var data = Get<List<T>>(key) ?? new List<T>();
-            int count = 0;
-            foreach (var value in values)
-            {
-                count++;
-                data.Add(value);
-            }
-            Set(key, data);
-            return count;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -101,7 +88,7 @@ namespace YuanRateLimiter.Cache
         /// <param name="key">Key</param>
         public void DelKey(string key)
         {
-            this.memoryCache.Remove(key);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -112,15 +99,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public T ListLeftPop<T>(string key)
         {
-            var list = Get<List<T>>(key);
-            if (list != null && list.Count > 0)
-            {
-                var first = list[0];
-                list.RemoveAt(0);
-                Set(key, list);
-                return first;
-            }
-            return default;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -131,15 +110,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public T ListRightPop<T>(string key)
         {
-            var list = Get<List<T>>(key);
-            if (list != null && list.Count > 0)
-            {
-                var last = list[^1];
-                list.RemoveAt(list.Count - 1);
-                Set(key, list);
-                return last;
-            }
-            return default;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -150,7 +121,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public T Get<T>(string key)
         {
-            return this.memoryCache.Get<T>(key);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -161,9 +132,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public List<T> ListGetAll<T>(string key)
         {
-            var data = this.memoryCache.Get<List<T>>(key);
-            if (data == null) return new List<T>();
-            return data;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -174,7 +143,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public double Decrement(string key, double value)
         {
-            return this.memoryCache.Decrement(key, value);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -185,7 +154,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public double Increment(string key, double value)
         {
-            return this.memoryCache.Increment(key, value);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -195,7 +164,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public bool ExistsKey(string key)
         {
-            return this.memoryCache.ContainsKey(key);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -206,7 +175,7 @@ namespace YuanRateLimiter.Cache
         /// <returns></returns>
         public bool SetExpires(string key, TimeSpan expire)
         {
-            return this.memoryCache.SetExpire(key, expire);
+            throw new NotImplementedException();
         }
     }
 }

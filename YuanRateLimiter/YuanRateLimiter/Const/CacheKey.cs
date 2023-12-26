@@ -6,6 +6,9 @@
  */
 namespace YuanRateLimiter.Const
 {
+    /// <summary>
+    /// 缓存建字符串常量
+    /// </summary>
     internal class CacheKey
     {
         /// <summary>

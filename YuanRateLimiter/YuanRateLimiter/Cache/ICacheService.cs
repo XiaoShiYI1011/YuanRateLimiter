@@ -1,4 +1,7 @@
-﻿/*
+﻿using System;
+using System.Collections.Generic;
+
+/*
  * 接 口 名：ICacheService
  * 描述：缓存服务接口
  * 创 建 者：十一
@@ -6,6 +9,9 @@
  */
 namespace YuanRateLimiter.Cache
 {
+    /// <summary>
+    /// 缓存服务接口
+    /// </summary>
     internal interface ICacheService
     {
         /// <summary>

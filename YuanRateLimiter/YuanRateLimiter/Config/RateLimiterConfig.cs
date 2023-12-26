@@ -8,6 +8,9 @@
  */
 namespace YuanRateLimiter.Config
 {
+    /// <summary>
+    /// 限流配置类
+    /// </summary>
     public class RateLimiterConfig
     {
         public bool EnableRateLimiter { get; set; }
