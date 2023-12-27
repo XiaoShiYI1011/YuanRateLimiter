@@ -106,9 +106,9 @@ namespace YuanRateLimiter.Core.TokenBucket
             await ipSemaphores[ipAddress].WaitAsync();
             try
             {
-                var currentBucket = this.cacheService.ListGetAll<string>(GetIpCacheKey(ipAddress));
+                var currentBucket = this.cacheService.ListGetAll<long>(GetIpCacheKey(ipAddress));
                 if (currentBucket.Count == 0) return false; // 桶中无令牌，拒绝请求
-                string getToken = this.cacheService.ListLeftPop<string>(GetIpCacheKey(ipAddress));
+                string getToken = this.cacheService.ListLeftPop<long>(GetIpCacheKey(ipAddress)).ToString();
                 if (string.IsNullOrEmpty(getToken)) return false;
                 return true;
             }
