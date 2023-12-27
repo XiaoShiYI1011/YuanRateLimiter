@@ -11,9 +11,9 @@ namespace Net6.WebApi.Test
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-            // ×¢²áÏŞÁ÷ÖĞ¼ä¼ş
+            // æ³¨å†Œé™æµä¸­é—´ä»¶
             //builder.Services.AddSingleton(builder.Configuration.GetSection("RateLimiter").Get<RateLimiterConfig>());
-            //builder.Services.AddRateLimiterSetUp(builder.Configuration["RedisConfig:Defaulr:ConnectionString"]);\
+            //builder.Services.AddRateLimiterSetUp(builder.Configuration["RedisConfig:Defaulr:ConnectionString"]);
 
             builder.Services.AddRateLimiterSetUp(
                 config => builder.Configuration.GetSection("RateLimiter").Get<RateLimiterConfig>(),
@@ -34,7 +34,7 @@ namespace Net6.WebApi.Test
                 options.AllowAnyMethod();
                 options.AllowAnyHeader();
             });
-            // Ê¹ÓÃÏŞÁ÷ÖĞ¼ä¼ş
+            // ä½¿ç”¨é™æµä¸­é—´ä»¶
             app.UseRateLimitMiddleware();
             app.UseAuthorization();
             app.MapControllers();
