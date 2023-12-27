@@ -46,13 +46,13 @@ namespace YuanRateLimiter.Middleware
                 return;
             }
             string requestIp = IPUtil.GetClientIPv4(context);
-            var isIpWhiteList = config.IpWhiteList.Where(i => i.Contains(requestIp)).Any();  // 白名单
+            var isIpWhiteList = config.IpWhiteList != null && config.IpWhiteList.Where(i => i.Contains(requestIp)).Any();  // 白名单
             if (isIpWhiteList)
             {
                 await this.next(context);
                 return;
             }
-            var isIpBlackList = config.IpBlackList.Where(i => i.Contains(requestIp)).Any();  // 黑名单
+            var isIpBlackList = config.IpWhiteList != null && config.IpBlackList.Where(i => i.Contains(requestIp)).Any();  // 黑名单
             if (isIpBlackList)
             {
                 context.Response.StatusCode = 403;
