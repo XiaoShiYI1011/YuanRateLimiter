@@ -24,7 +24,6 @@ namespace YuanRateLimiter.Core.SlidingWindow
     {
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
-        private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
         private readonly Dictionary<string, SemaphoreSlim> ipSemaphores = new Dictionary<string, SemaphoreSlim>();
         private bool disposed = false;
 
