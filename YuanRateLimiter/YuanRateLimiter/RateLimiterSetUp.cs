@@ -6,6 +6,7 @@ using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Core.LeakBucket;
+using YuanRateLimiter.Core.SlidingWindow;
 using YuanRateLimiter.Core.TokenBucket;
 using YuanRateLimiter.Enum;
 using YuanRateLimiter.Middleware;
@@ -70,9 +71,10 @@ namespace YuanRateLimiter
                     if (rateLimitingConfig.EnableIpLimiter) services.AddSingleton<IRateLimiter, IPLeakBucket>();
                     else services.AddSingleton<IRateLimiter, LeakBucket>();
                     break;
-                //case RateLimiterModel.SlidingWindow:  // 滑动窗口限流
-                //    services.AddSingleton<IRateLimiter, SlidingWindow>();
-                //    break;
+                case RateLimiterModel.SlidingWindow:  // 滑动窗口限流
+                    if (rateLimitingConfig.EnableIpLimiter) services.AddSingleton<IRateLimiter, IPSlidingWindow>();
+                    else services.AddSingleton<IRateLimiter, SlidingWindow>();
+                    break;
                 default:  // 默认令牌桶限流
                     services.AddSingleton<IRateLimiter, TokenBucket>();
                     break;
