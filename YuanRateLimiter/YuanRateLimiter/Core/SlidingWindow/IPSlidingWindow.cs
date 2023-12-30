@@ -1,12 +1,14 @@
 ﻿using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
 using YuanRateLimiter.Core.Interface;
+using YuanRateLimiter.Enum;
 using YuanRateLimiter.Utils;
 
 /*
@@ -36,9 +38,35 @@ namespace YuanRateLimiter.Core.SlidingWindow
 
         public async Task<bool> CheckRateLimit(HttpContext context)
         {
+            int windowSize, maxRequests;
+            switch (config.RateLimiterRule.RateLimiterLogLevel)
+            {
+                case RateLimitingLevel.All:  // 全接口限流
+                    maxRequests = config.RateLimiterRule.AllFlowLimiterRule.MaxRequests;
+                    windowSize = config.RateLimiterRule.AllFlowLimiterRule.WindowSize;
+                    break;
+                case RateLimitingLevel.Method:  // Method 级别限流
+                    var methodFlowLimitingRules = config.RateLimiterRule.MethodFlowLimiterRules;
+                    var methods = methodFlowLimitingRules.Where(t => t.Method.Equals(context.Request.Method)).ToList();
+                    if (methods.Count <= 0) return true;
+                    maxRequests = methods[0].MaxRequests;
+                    windowSize = methods[0].WindowSize;
+                    break;
+                case RateLimitingLevel.Action:  // Action 级别限流
+                    var actionFlowLimitingRules = config.RateLimiterRule.ActionFlowLimiterRules;
+                    var apis = actionFlowLimitingRules.Where(t => t.Path.Equals(context.Request.Path.Value)).ToList();
+                    if (apis.Count <= 0) return true;
+                    maxRequests = apis[0].RateLimit;
+                    windowSize = apis[0].WindowSize;
+                    break;
+                default:  // 默认全接口限流
+                    maxRequests = config.RateLimiterRule.AllFlowLimiterRule.MaxRequests;
+                    windowSize = config.RateLimiterRule.AllFlowLimiterRule.WindowSize;
+                    break;
+            }
             string ipAddress = IPUtil.GetClientIPv4(context);
             if (!ipSemaphores.ContainsKey(ipAddress)) ipSemaphores[ipAddress] = new SemaphoreSlim(1, 1);
-            return await RequestWindow(TimeSpan.FromSeconds(10), 10, ipAddress);
+            return await RequestWindow(TimeSpan.FromSeconds(windowSize), maxRequests, ipAddress);
         }
 
         /// <summary>
