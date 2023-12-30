@@ -178,12 +178,12 @@ namespace YuanRateLimiter.Core.TokenBucket
         {
             if (!disposed)
             {
-                foreach (var semaphore in ipSemaphores.Values)
-                {
-                    semaphore.Dispose();
-                }
                 this.timer?.Dispose();
-                this.cacheService.DelKey(config.CacheKey);
+                foreach (var semaphore in ipSemaphores)
+                {
+                    this.cacheService.DelKey(semaphore.Key);
+                    semaphore.Value.Dispose();
+                }
                 disposed = true;
             }
         }

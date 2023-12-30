@@ -132,11 +132,11 @@ namespace YuanRateLimiter.Core.LeakBucket
             if (!disposed)
             {
                 this.timer?.Dispose();
-                foreach (var semaphore in ipSemaphores.Values)
+                foreach (var semaphore in ipSemaphores)
                 {
-                    semaphore.Dispose();
+                    this.cacheService.DelKey(semaphore.Key);
+                    semaphore.Value.Dispose();
                 }
-                this.cacheService.DelKey(config.CacheKey);
                 disposed = true;
             }
         }
