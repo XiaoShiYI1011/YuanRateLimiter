@@ -36,6 +36,8 @@ namespace YuanRateLimiter.Config
     {
         public int Capacity { get; set; }
         public int RateLimit { get; set; }
+        public int WindowSize { get; set; }
+        public int MaxRequests { get; set; }
     }
 
     public class MethodFlowLimiterRules
@@ -43,6 +45,8 @@ namespace YuanRateLimiter.Config
         public string Method { get; set; }
         public int Capacity { get; set; }
         public int RateLimit { get; set; }
+        public int WindowSize { get; set; }
+        public int MaxRequests { get; set; }
     }
 
     public class ActionFlowLimiterRules
@@ -50,5 +54,7 @@ namespace YuanRateLimiter.Config
         public string Path { get; set; }
         public int Capacity { get; set; }
         public int RateLimit { get; set; }
+        public int WindowSize { get; set; }
+        public int MaxRequests { get; set; }
     }
 }
