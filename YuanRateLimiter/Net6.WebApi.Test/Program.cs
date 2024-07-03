@@ -11,12 +11,16 @@ namespace Net6.WebApi.Test
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-            // ×¢²áÏŞÁ÷ÖĞ¼ä¼ş
-            //builder.Services.AddSingleton(builder.Configuration.GetSection("RateLimiting").Get<RateLimitingConfig>());
+            // æ³¨å†Œé™æµä¸­é—´ä»¶
+            //builder.Services.AddSingleton(builder.Configuration.GetSection("RateLimiter").Get<RateLimiterConfig>());
             //builder.Services.AddRateLimiterSetUp(builder.Configuration["RedisConfig:Defaulr:ConnectionString"]);
+
             builder.Services.AddRateLimiterSetUp(
-                builder.Configuration["RedisConfig:Defaulr:ConnectionString"], 
-                config => builder.Configuration.GetSection("RateLimiting").Get<RateLimitingConfig>());
+                config => builder.Configuration.GetSection("RateLimiter").Get<RateLimiterConfig>(),
+                builder.Configuration["RedisConfig:Default:ConnectionString"]);
+
+            //builder.Services.AddRateLimiterSetUp(
+            //    config => builder.Configuration.GetSection("RateLimiter").Get<RateLimiterConfig>());
 
             var app = builder.Build();
             if (app.Environment.IsDevelopment())
@@ -24,7 +28,13 @@ namespace Net6.WebApi.Test
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-            // Ê¹ÓÃÏŞÁ÷ÖĞ¼ä¼ş
+            app.UseCors(options =>
+            {
+                options.AllowAnyOrigin();
+                options.AllowAnyMethod();
+                options.AllowAnyHeader();
+            });
+            // ä½¿ç”¨é™æµä¸­é—´ä»¶
             app.UseRateLimitMiddleware();
             app.UseAuthorization();
             app.MapControllers();

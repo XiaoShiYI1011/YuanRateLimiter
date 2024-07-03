@@ -1,20 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
 	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<TargetFramework>netstandard2.0</TargetFramework>
 		<Title>YuanRateLimiter</Title>
 		<Authors>十一</Authors>
 		<Description>ASP.NET Core的限流中间件</Description>
-		<Version>1.0.2</Version>
+		<Version>2.3.3</Version>
 		<PackageProjectUrl>https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter</PackageProjectUrl>
 		<RepositoryType>git</RepositoryType>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
 	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.1.1" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
-		<PackageReference Include="SimpleRedis" Version="1.1.8" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+		<PackageReference Include="NewLife.Redis" Version="5.5.2023.1201" />
 	</ItemGroup>
+
 </Project>
