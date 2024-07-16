@@ -5,8 +5,6 @@
 
 ### ✨如果您觉得有帮助，请点右上角 "Star" 支持一下谢谢
 
-本工作室开源项目：[ASP.NET Core 限流中间件](https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter)、[自毁机制](https://gitee.com/XiaoShiYi-1011/self-destruct)
-
 ## 🎇框架介绍
 
 YuanRateLimiter是一个Asp.Net Core的限流中间件。如果你项目不想采用国外的限流组件那就可以参考此项目或者直接使用，配置灵活：通过appsettings.json文件配置，支持全接口限流、Method限流、Action接口限流。支持令牌桶限流、漏桶限流、滑动窗口限流。默认采用基于Redis的令牌桶算法，支持Redis和MemoryCache的无缝切换。正在集成其他限流算法。采用[NewLife.Redis](https://github.com/NewLifeX/NewLife.Redis)高性能Redis客户端组件。核心代码注释覆盖率>90%。值得注意的是NET 7/8自带了完善的限流中间件，友情链接：[ASP.NET Core 中的速率限制中间件 | Microsoft Learn](https://learn.microsoft.com/zh-cn/aspnet/core/performance/rate-limit?view=aspnetcore-8.0)。如果你是NET 7/8及以上开发的项目，请使用NET 7/8自带的限流中间件。温馨提示：该项目暂未开发成熟，请勿直接用于生产项目。
