@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Core.Interface;
@@ -56,15 +57,25 @@ namespace YuanRateLimiter.Middleware
             if (isIpBlackList)
             {
                 context.Response.StatusCode = 403;
-                context.Response.ContentType = "text/plain;charset=utf-8";
-                await context.Response.WriteAsync("当前Ip被禁止访问");
+                context.Response.ContentType = "application/json;charset=utf-8";
+                var responseMessage = new
+                {
+                    statusCode = 403,
+                    message = "当前Ip被禁止访问"
+                };
+                await context.Response.WriteAsync(JsonSerializer.Serialize(responseMessage));
                 return;
             }
             if (!await rateLimiter.CheckRateLimit(context))
             {
                 context.Response.StatusCode = config.HttpStatusCode;
-                context.Response.ContentType = "text/plain;charset=utf-8";
-                await context.Response.WriteAsync(config.LimitingMessage);
+                context.Response.ContentType = "application/json;charset=utf-8";
+                var responseMessage = new
+                {
+                    statusCode = 429,
+                    message = config.LimitingMessage
+                };
+                await context.Response.WriteAsync(JsonSerializer.Serialize(responseMessage));
                 logger.LogWarning($"{DateTime.Now:yyyy-MM-dd HH:mm:ss:fff}：接口已限流 ==> {context.Request.Path.Value}\n请求IP ==> {IPUtil.GetClientIPv4(context)}");
                 return;
             }

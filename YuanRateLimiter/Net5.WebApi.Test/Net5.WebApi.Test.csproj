@@ -8,7 +8,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.5" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="5.6.3" />
-    <PackageReference Include="YuanRateLimiter" Version="2.3.2" />
+    <PackageReference Include="YuanRateLimiter" Version="2.3.3" />
   </ItemGroup>
 
 </Project>

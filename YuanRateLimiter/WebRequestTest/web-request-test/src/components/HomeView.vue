@@ -10,7 +10,7 @@ import axios from "axios";
 export default {
     data() {
         return {
-            requestUrl: "http://localhost:5155/api/Test/Test01",
+            requestUrl: "http://localhost:5001/api/test/test04",
             requestType: "GET",
             requestRate: 1,
             imitateIp: "171.113.42.210",
