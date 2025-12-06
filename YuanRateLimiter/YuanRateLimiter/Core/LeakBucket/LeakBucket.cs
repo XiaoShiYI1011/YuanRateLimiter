@@ -1,24 +1,20 @@
-﻿using Microsoft.AspNetCore.Http;
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
 using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Enum;
 
-/*
- * 类名：LeakBucket
- * 描述：漏桶算法
- * 创 建 者：十一 
- * 创建时间：2023/12/18 0:08:44 
- */
 namespace YuanRateLimiter.Core.LeakBucket
 {
     /// <summary>
     /// 漏桶算法
+    /// 创 建 者：十一 
+    /// 创建时间：2023/12/18 0:08:44 
     /// </summary>
     internal class LeakBucket : IRateLimiter
     {
@@ -38,6 +34,11 @@ namespace YuanRateLimiter.Core.LeakBucket
             timer = new Timer(async _ => await ConsumeToken(), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
         }
 
+        /// <summary>
+        /// 检查限流
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
         public async Task<bool> CheckRateLimit(HttpContext context)
         {
             switch (config.RateLimiterRule.RateLimiterLogLevel)

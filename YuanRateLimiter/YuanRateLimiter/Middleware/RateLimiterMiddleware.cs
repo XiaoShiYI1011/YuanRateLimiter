@@ -1,23 +1,19 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Utils;
 
-/*
- * 类名：RateLimiterMiddleware
- * 描述：限流中间件
- * 创 建 者：十一 
- * 创建时间：2023/12/15 21:45:07 
- */
 namespace YuanRateLimiter.Middleware
 {
     /// <summary>
     /// 限流中间件
+    /// 创 建 者：十一 
+    /// 创建时间：2023/12/15 21:45:07 
     /// </summary>
     internal class RateLimiterMiddleware
     {

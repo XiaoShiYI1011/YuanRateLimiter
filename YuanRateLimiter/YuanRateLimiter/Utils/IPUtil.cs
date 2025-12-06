@@ -2,16 +2,12 @@
 using System.Linq;
 using System.Net;
 
-/*
- * 类名：IPUtil
- * 描述：IP 地址工具类
- * 创 建 者：十一 
- * 创建时间：2023/12/14 10:37:27 
- */
 namespace YuanRateLimiter.Utils
 {
     /// <summary>
-    /// IP 地址工具类
+    /// 地址工具类
+    /// 创 建 者：十一 
+    /// 创建时间：2023/12/14 10:37:27 
     /// </summary>
     internal class IPUtil
     {
@@ -25,8 +21,7 @@ namespace YuanRateLimiter.Utils
             string ip = string.Empty;
             if (context.Connection.RemoteIpAddress != null)
             {
-                if (context.Request.Headers.ContainsKey("X-Real-IP"))
-                    ip = context.Request.Headers["X-Real-IP"].FirstOrDefault();
+                if (context.Request.Headers.ContainsKey("X-Real-IP")) ip = context.Request.Headers["X-Real-IP"].FirstOrDefault();
                 if (context.Request.Headers.ContainsKey("X-Forwarded-For"))
                 {
                     var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
@@ -43,8 +38,7 @@ namespace YuanRateLimiter.Utils
                         }
                     }
                 }
-                if (string.IsNullOrEmpty(ip))
-                    ip = context.Connection.RemoteIpAddress?.MapToIPv4()?.ToString();
+                if (string.IsNullOrEmpty(ip)) ip = context.Connection.RemoteIpAddress?.MapToIPv4()?.ToString();
             }
             return ip;
         }

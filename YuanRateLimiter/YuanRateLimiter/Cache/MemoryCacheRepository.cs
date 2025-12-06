@@ -1,23 +1,24 @@
-﻿using NewLife.Caching;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using NewLife.Caching;
+using YuanRateLimiter.Enum;
 
-/*
- * 类名：MemoryCacheRepository
- * 描述：MemoryCache 仓储类
- * 创 建 者：十一 
- * 创建时间：2023/12/17 16:04:31 
- */
 namespace YuanRateLimiter.Cache
 {
     /// <summary>
     /// MemoryCache 仓储类
+    /// 创 建 者：十一 
+    /// 创建时间：2023/12/17 16:04:31 
     /// </summary>
     internal class MemoryCacheRepository : ICacheService
     {
         private readonly MemoryCache memoryCache;
 
         public MemoryCacheRepository(MemoryCache memoryCache) => this.memoryCache = memoryCache;
+
+        public bool IsAvailable => true;
+
+        public CacheType CacheType => CacheType.Memory;
 
         /// <summary>
         /// 添加一条缓存数据

@@ -1,8 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
-using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
@@ -10,23 +10,19 @@ using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Enum;
 using YuanRateLimiter.Utils;
 
-/*
- * 类名：IPLeakBucket
- * 描述：IP漏桶
- * 创 建 者：十一 
- * 创建时间：2023/12/23 19:08:21 
- */
 namespace YuanRateLimiter.Core.LeakBucket
 {
     /// <summary>
-    /// IP漏桶
+    /// IP漏桶算法
+    /// 创 建 者：十一 
+    /// 创建时间：2023/12/23 19:08:21 
     /// </summary>
     internal class IPLeakBucket : IRateLimiter
     {
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
         private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
-        private readonly Dictionary<string, SemaphoreSlim> ipSemaphores = new Dictionary<string, SemaphoreSlim>();
+        private readonly ConcurrentDictionary<string, SemaphoreSlim> ipSemaphores = new ConcurrentDictionary<string, SemaphoreSlim>();
         private readonly System.Timers.Timer timer;
         private bool disposed = false;
         private int bucketSize;
@@ -42,6 +38,11 @@ namespace YuanRateLimiter.Core.LeakBucket
             timer.AutoReset = true;
         }
 
+        /// <summary>
+        /// 检查限流
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
         public async Task<bool> CheckRateLimit(HttpContext context)
         {
             switch (config.RateLimiterRule.RateLimiterLogLevel)

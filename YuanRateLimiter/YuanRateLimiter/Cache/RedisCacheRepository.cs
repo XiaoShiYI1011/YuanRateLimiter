@@ -1,24 +1,45 @@
-﻿using NewLife.Caching;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using NewLife.Caching;
+using YuanRateLimiter.Enum;
 
-/*
- * 类名：RedisCacheRepository
- * 描述：Redis 仓储类
- * 创 建 者：十一 
- * 创建时间：2023/11/20 22:24:58 
- */
 namespace YuanRateLimiter.Cache
 {
     /// <summary>
     /// Redis 仓储类
+    /// 创 建 者：十一 
+    /// 创建时间：2023/11/20 22:24:58 
     /// </summary>
     internal class RedisCacheRepository : ICacheService
     {
         private readonly FullRedis redisClient;
+        private volatile bool isAvailable = true;
 
-        public RedisCacheRepository(FullRedis redisClient) => this.redisClient = redisClient;
+        public RedisCacheRepository(FullRedis redisClient)
+        {
+            this.redisClient = redisClient;
+            TestConnection();
+        }
+
+        public bool IsAvailable => isAvailable;
+
+        public CacheType CacheType => CacheType.Redis;
+
+        /// <summary>
+        /// 测试Redis连接
+        /// </summary>
+        private void TestConnection()
+        {
+            try
+            {
+                this.isAvailable = this.redisClient.Set("CONNECTION_TEST", DateTime.Now.Ticks, 1);
+            }
+            catch
+            {
+                this.isAvailable = false;
+            }
+        }
 
         /// <summary>
         /// 添加一条缓存数据

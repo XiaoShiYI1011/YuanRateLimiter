@@ -1,9 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
-using System;
-using System.Collections.Generic;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
@@ -11,23 +11,19 @@ using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Enum;
 using YuanRateLimiter.Utils;
 
-/*
- * 类名：IPTokenBucket
- * 描述：IP令牌桶
- * 创 建 者：十一 
- * 创建时间：2023/12/22 23:28:32 
- */
 namespace YuanRateLimiter.Core.TokenBucket
 {
     /// <summary>
-    /// IP令牌桶
+    /// IP令牌桶算法
+    /// 创 建 者：十一 
+    /// 创建时间：2023/12/22 23:28:32 
     /// </summary>
     internal class IPTokenBucket : IRateLimiter
     {
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
         private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
-        private readonly Dictionary<string, SemaphoreSlim> ipSemaphores = new Dictionary<string, SemaphoreSlim>();
+        private readonly ConcurrentDictionary<string, SemaphoreSlim> ipSemaphores = new ConcurrentDictionary<string, SemaphoreSlim>();
         private readonly System.Timers.Timer timer;
         private long generateTokenBucketDate;
         private bool disposed = false;
@@ -91,7 +87,9 @@ namespace YuanRateLimiter.Core.TokenBucket
             {
                 generateTokenBucketDate = DateTimeOffset.Now.ToUnixTimeSeconds();
                 for (int i = 0; i < rateLimit; i++)
+                {
                     this.cacheService.ListAdd<long>(GetIpCacheKey(ipAddress), generateTokenBucketDate);
+                }
                 ipSemaphores[ipAddress] = new SemaphoreSlim(1, 1);
             }
             return await ConsumeToken(ipAddress);
@@ -134,8 +132,7 @@ namespace YuanRateLimiter.Core.TokenBucket
                     {
                         var currentBucket = this.cacheService.ListGetAll<long>(GetIpCacheKey(ipAddress));
                         // 桶满不加
-                        if (currentBucket.Count != bucketSize)
-                            this.cacheService.ListAdd<long>(GetIpCacheKey(ipAddress), generateTokenBucketDate);
+                        if (currentBucket.Count != bucketSize) this.cacheService.ListAdd<long>(GetIpCacheKey(ipAddress), generateTokenBucketDate);
                     }
                 }
             }

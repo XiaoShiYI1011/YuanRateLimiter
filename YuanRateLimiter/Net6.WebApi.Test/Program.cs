@@ -12,15 +12,9 @@ namespace Net6.WebApi.Test
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             // 注册限流中间件
-            //builder.Services.AddSingleton(builder.Configuration.GetSection("RateLimiter").Get<RateLimiterConfig>());
-            //builder.Services.AddRateLimiterSetUp(builder.Configuration["RedisConfig:Defaulr:ConnectionString"]);
-
             builder.Services.AddRateLimiterSetUp(
                 config => builder.Configuration.GetSection("RateLimiter").Get<RateLimiterConfig>(),
                 builder.Configuration["RedisConfig:Default:ConnectionString"]);
-
-            //builder.Services.AddRateLimiterSetUp(
-            //    config => builder.Configuration.GetSection("RateLimiter").Get<RateLimiterConfig>());
 
             var app = builder.Build();
             if (app.Environment.IsDevelopment())

@@ -1,24 +1,20 @@
-﻿using Microsoft.AspNetCore.Http;
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
 using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Enum;
 
-/*
- * 类名：SlidingWindow
- * 描述：滑动窗口算法
- * 创 建 者：十一 
- * 创建时间：2023/12/18 18:56:39 
- */
 namespace YuanRateLimiter.Core.SlidingWindow
 {
     /// <summary>
     /// 滑动窗口算法
+    /// 创 建 者：十一 
+    /// 创建时间：2023/12/18 18:56:39 
     /// </summary>
     internal class SlidingWindow : IRateLimiter
     {
@@ -89,8 +85,7 @@ namespace YuanRateLimiter.Core.SlidingWindow
                     this.cacheService.ListLeftPop<RequestQueue>(config.CacheKey);
                     requestList = this.cacheService.ListGetAll<RequestQueue>(config.CacheKey);
                 }
-                if (requestList.Count < maxRequests)
-                    this.cacheService.ListAdd(config.CacheKey, new RequestQueue { RequestTime = currentTime });
+                if (requestList.Count < maxRequests) this.cacheService.ListAdd(config.CacheKey, new RequestQueue { RequestTime = currentTime });
                 else result = false;
                 return result;
             }

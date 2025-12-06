@@ -1,9 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
-using System;
-using System.Collections.Generic;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
@@ -11,22 +11,18 @@ using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Enum;
 using YuanRateLimiter.Utils;
 
-/*
- * 类名：IPSlidingWindow
- * 描述：IP滑动窗口
- * 创 建 者：十一 
- * 创建时间：2023/12/30 18:35:26 
- */
 namespace YuanRateLimiter.Core.SlidingWindow
 {
     /// <summary>
-    /// IP滑动窗口
+    /// IP滑动窗口算法
+    /// 创 建 者：十一 
+    /// 创建时间：2023/12/30 18:35:26 
     /// </summary>
     internal class IPSlidingWindow : IRateLimiter
     {
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
-        private readonly Dictionary<string, SemaphoreSlim> ipSemaphores = new Dictionary<string, SemaphoreSlim>();
+        private readonly ConcurrentDictionary<string, SemaphoreSlim> ipSemaphores = new ConcurrentDictionary<string, SemaphoreSlim>();
         private bool disposed = false;
 
         public IPSlidingWindow(ICacheService cacheService, RateLimiterConfig config)
@@ -36,6 +32,11 @@ namespace YuanRateLimiter.Core.SlidingWindow
             if (string.IsNullOrEmpty(config.CacheKey)) config.CacheKey = CacheKey.RateLimiterCacheKey;
         }
 
+        /// <summary>
+        /// 检查限流
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
         public async Task<bool> CheckRateLimit(HttpContext context)
         {
             int windowSize, maxRequests;
@@ -88,8 +89,7 @@ namespace YuanRateLimiter.Core.SlidingWindow
                     this.cacheService.ListLeftPop<RequestQueue>(GetIpCacheKey(ipAddress));
                     requestList = this.cacheService.ListGetAll<RequestQueue>(GetIpCacheKey(ipAddress));
                 }
-                if (requestList.Count < maxRequests)
-                    this.cacheService.ListAdd(GetIpCacheKey(ipAddress), new RequestQueue { RequestTime = currentTime });
+                if (requestList.Count < maxRequests) this.cacheService.ListAdd(GetIpCacheKey(ipAddress), new RequestQueue { RequestTime = currentTime });
                 else result = false;
                 return result;
             }
@@ -106,6 +106,9 @@ namespace YuanRateLimiter.Core.SlidingWindow
         /// <returns></returns>
         private string GetIpCacheKey(string ipAddress) => config.CacheKey + ":" + ipAddress;
 
+        /// <summary>
+        /// 销毁
+        /// </summary>
         public void Dispose()
         {
             if (!disposed)

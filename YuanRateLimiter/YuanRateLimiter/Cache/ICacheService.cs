@@ -1,19 +1,26 @@
 ﻿using System;
 using System.Collections.Generic;
+using YuanRateLimiter.Enum;
 
-/*
- * 接 口 名：ICacheService
- * 描述：缓存服务接口
- * 创 建 者：十一
- * 创建时间：2023/12/17 15:59:17 
- */
 namespace YuanRateLimiter.Cache
 {
     /// <summary>
     /// 缓存服务接口
+    /// 创 建 者：十一 
+    /// 创建时间：2023/12/17 15:59:17 
     /// </summary>
     internal interface ICacheService
     {
+        /// <summary>
+        /// 检查缓存是否可用
+        /// </summary>
+        bool IsAvailable { get; }
+
+        /// <summary>
+        /// 缓存类型
+        /// </summary>
+        CacheType CacheType { get; }
+
         /// <summary>
         /// 添加一条缓存数据
         /// </summary>

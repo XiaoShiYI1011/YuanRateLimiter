@@ -1,24 +1,20 @@
-﻿using Microsoft.AspNetCore.Http;
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
 using YuanRateLimiter.Core.Interface;
 using YuanRateLimiter.Enum;
 
-/*
- * 类名：TokenBucket
- * 描述：令牌桶算法
- * 创 建 者：十一 
- * 创建时间：2023/12/15 21:50:56 
- */
 namespace YuanRateLimiter.Core.TokenBucket
 {
     /// <summary>
     /// 令牌桶算法
+    /// 创 建 者：十一 
+    /// 创建时间：2023/12/15 21:50:56 
     /// </summary>
     internal class TokenBucket : IRateLimiter
     {
@@ -107,10 +103,8 @@ namespace YuanRateLimiter.Core.TokenBucket
                 for (int i = 0; i < rateLimit; i++)  // 一秒加几个
                 {
                     var currentBucket = this.cacheService.ListGetAll<string>(config.CacheKey);
-                    if (currentBucket.Count != bucketSize)  // 桶没装满才加
-                    {
-                        this.cacheService.ListAdd<string>(config.CacheKey, DateTimeOffset.Now.ToUnixTimeSeconds().ToString());
-                    }
+                    // 桶没装满才加
+                    if (currentBucket.Count != bucketSize) this.cacheService.ListAdd<string>(config.CacheKey, DateTimeOffset.Now.ToUnixTimeSeconds().ToString());
                 }
             }
             finally
