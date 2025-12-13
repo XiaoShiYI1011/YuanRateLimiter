@@ -32,7 +32,7 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 1. NuGet安装
 
     ```
-    NuGet\Install-Package YuanRateLimiter -Version 2.3.6
+    NuGet\Install-Package YuanRateLimiter -Version 2.4.0
     ```
 
 2. 使用
