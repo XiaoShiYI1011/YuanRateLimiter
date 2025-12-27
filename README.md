@@ -32,7 +32,7 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 1. NuGet安装
 
     ```
-    NuGet\Install-Package YuanRateLimiter -Version 2.4.0
+    NuGet\Install-Package YuanRateLimiter -Version 2.4.1
     ```
 
 2. 使用
@@ -44,10 +44,10 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
         // 使用Redis：
         builder.Services.AddRateLimiterSetUp(
             builder.Configuration["Redis连接字符串"], 
-            config => builder.Configuration.GetSection("RateLimiter配置节点").Get<RateLimitingConfig>());
+            config => builder.Configuration.GetSection("RateLimiter配置节点").Get<RateLimiterConfig>());
         // 使用MemoryCache：
         builder.Services.AddRateLimiterSetUp(
-            config => builder.Configuration.GetSection("RateLimiter配置节点").Get<RateLimitingConfig>());
+            config => builder.Configuration.GetSection("RateLimiter配置节点").Get<RateLimiterConfig>());
         
         // 使用限流中间件（添加在跨域中间件的下面，否则前端无法捕获错误状态码）
         app.UseRateLimitMiddleware();
@@ -164,9 +164,19 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 
 ## 🧾更新日志
 
+- v2.4.1
+  - 【PERF】重构令牌桶算法核心架构：将定时器主动补充令牌改为请求时懒惰计算，大幅提升性能
+  - 【OPT】移除`System.Threading.Timer`依赖，减少线程调度开销和潜在计时器问题
+  - 【OPT】优化存储结构，令牌计数从List存储改为Key-Value存储，显著降低内存占用
+  - 【OPT】简化IPTokenBucket逻辑，移除"清理不活跃IP"的定时任务，依赖缓存过期机制
+  - 【FIX】确保令牌桶算法在高并发场景下的一致性，避免令牌超发问题
+
+- v2.4.0
+  - 【ADD】增加混合缓存：以 Redis作为主缓存，内存缓存作为降级缓存的双重缓存机制，Redis 不可用时自动切换，保障限流功能不中断
+  - 【ADD】增加双写策略：Redis可用时，缓存数据同时写入Redis和内存，提升本地读取速度，增强缓存高可用性
+
 - v2.3.6
   - 【BUG】[修复触发限流时的响应体类型`text/plain;charset=utf-8  ==>  application/json;charset=utf-8`](https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter/commit/e41a3e70d100a2d5e0c12daa55045c2b19eb6a91)
-
 - v2.3.3
   - 【BUG】[**紧急修复**：补充滑动窗口限流规则](https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter/commit/ce312b9ffac601cd2048bef0347c272ec51ea3c0)
 - ~~v2.3.2~~（忘记加滑动窗口的限流规则了）
@@ -304,3 +314,4 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 - 该项目签署了MIT授权许可，详情请参阅 [LICENSE](https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter/raw/master/LICENSE)，源码完全免费开源商用。
 - 不能以任何形式将该项目用于非法为目的的行为。
 - 任何基于本软件而产生的一切法律纠纷和责任，均于作者无关。
+

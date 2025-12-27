@@ -22,119 +22,116 @@ namespace YuanRateLimiter.Core.TokenBucket
     {
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
-        private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
         private readonly ConcurrentDictionary<string, SemaphoreSlim> ipSemaphores = new ConcurrentDictionary<string, SemaphoreSlim>();
-        private readonly System.Timers.Timer timer;
-        private long generateTokenBucketDate;
         private bool disposed = false;
-        private int bucketSize;
-        private int rateLimit;
 
         public IPTokenBucket(ICacheService cacheService, RateLimiterConfig config)
         {
             this.cacheService = cacheService;
             this.config = config;
-            if (string.IsNullOrEmpty(config.CacheKey)) config.CacheKey = CacheKey.RateLimiterCacheKey;
-            timer = new System.Timers.Timer(1 * 1000);
-            timer.Elapsed += async (sender, e) => await GenerateToken();
-            timer.AutoReset = true;
-            InitializeAsync();
+            if (string.IsNullOrEmpty(config.CacheKey))
+            {
+                config.CacheKey = CacheKey.RateLimiterCacheKey;
+            }
         }
 
-        /// <summary>
-        /// 初始化令牌桶
-        /// </summary>
-        private async void InitializeAsync()
-        {
-            await GenerateToken();
-            this.timer.Start();
-        }
-
-        /// <summary>
+        // <summary>
         /// 检查限流
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
         public async Task<bool> CheckRateLimit(HttpContext context)
         {
+            int rateLimit;
+            int bucketSize;
             switch (config.RateLimiterRule.RateLimiterLogLevel)
             {
-                case RateLimitingLevel.All:  // 全接口限流
+                case RateLimitingLevel.All: // 全接口限流
                     rateLimit = config.RateLimiterRule.AllFlowLimiterRule.RateLimit;
                     bucketSize = config.RateLimiterRule.AllFlowLimiterRule.Capacity;
                     break;
-                case RateLimitingLevel.Method:  // Method 级别限流
+                case RateLimitingLevel.Method: // Method 级别限流
                     var methodFlowLimitingRules = config.RateLimiterRule.MethodFlowLimiterRules;
-                    var methods = methodFlowLimitingRules.Where(t => t.Method.Equals(context.Request.Method)).ToList();
-                    if (methods.Count <= 0) return true;
+                    var methods = methodFlowLimitingRules
+                        .Where(t => t.Method.Equals(context.Request.Method))
+                        .ToList();
+                    if (methods.Count <= 0) 
+                    {
+                        return true;
+                    }
                     rateLimit = methods[0].RateLimit;
                     bucketSize = methods[0].Capacity;
                     break;
-                case RateLimitingLevel.Action:  // Action 级别限流
+                case RateLimitingLevel.Action: // Action 级别限流
                     var actionFlowLimitingRules = config.RateLimiterRule.ActionFlowLimiterRules;
-                    var apis = actionFlowLimitingRules.Where(t => t.Path.Equals(context.Request.Path.Value)).ToList();
-                    if (apis.Count <= 0) return true;
+                    var apis = actionFlowLimitingRules
+                        .Where(t => t.Path.Equals(context.Request.Path.Value))
+                        .ToList();
+                    if (apis.Count <= 0) 
+                    {
+                        return true;
+                    }
                     rateLimit = apis[0].RateLimit;
                     bucketSize = apis[0].Capacity;
                     break;
-                default:  // 默认全接口限流
+                default: // 默认全接口限流
                     rateLimit = config.RateLimiterRule.AllFlowLimiterRule.RateLimit;
                     bucketSize = config.RateLimiterRule.AllFlowLimiterRule.Capacity;
                     break;
             }
             string ipAddress = IPUtil.GetClientIPv4(context);
+            if (string.IsNullOrEmpty(ipAddress))
+            {
+                return false; // 无效IP，拒绝
+            }
+            // 为新IP初始化满桶
+            var tokensKey = GetIpTokensKey(ipAddress);
+            var lastKey = GetIpLastKey(ipAddress);
             if (!ipSemaphores.ContainsKey(ipAddress))
             {
-                generateTokenBucketDate = DateTimeOffset.Now.ToUnixTimeSeconds();
-                for (int i = 0; i < rateLimit; i++)
-                {
-                    this.cacheService.ListAdd<long>(GetIpCacheKey(ipAddress), generateTokenBucketDate);
-                }
                 ipSemaphores[ipAddress] = new SemaphoreSlim(1, 1);
+                var now = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                this.cacheService.Set<int>(tokensKey, bucketSize);
+                this.cacheService.Set<long>(lastKey, now);
             }
-            return await ConsumeToken(ipAddress);
+            return await ConsumeToken(ipAddress, rateLimit, bucketSize, tokensKey, lastKey);
         }
 
         /// <summary>
-        /// 消耗令牌（请求到达，拿走一个令牌）
+        /// 消耗令牌（请求到达，先补充再消耗）
         /// </summary>
+        /// <param name="ipAddress">IP地址</param>
+        /// <param name="rateLimit">当前规则的速率</param>
+        /// <param name="bucketSize">当前规则的容量</param>
+        /// <param name="tokensKey">令牌计数键</param>
+        /// <param name="lastKey">上次补充时间键</param>
         /// <returns></returns>
-        private async Task<bool> ConsumeToken(string ipAddress)
+        private async Task<bool> ConsumeToken(string ipAddress, int rateLimit, int bucketSize, string tokensKey, string lastKey)
         {
-            await ipSemaphores[ipAddress].WaitAsync();
-            try
-            {
-                var currentBucket = this.cacheService.ListGetAll<long>(GetIpCacheKey(ipAddress));
-                if (currentBucket.Count == 0) return false; // 桶中无令牌，拒绝请求
-                string getToken = this.cacheService.ListLeftPop<long>(GetIpCacheKey(ipAddress)).ToString();
-                if (string.IsNullOrEmpty(getToken)) return false;
-                return true;
-            }
-            finally
-            {
-                ipSemaphores[ipAddress].Release();
-            }
-        }
-
-        /// <summary>
-        /// 生成令牌（固定速率生成一定量的令牌）
-        /// </summary>
-        /// <returns></returns>
-        private async Task GenerateToken()
-        {
+            var semaphore = ipSemaphores[ipAddress];
             await semaphore.WaitAsync();
             try
             {
-                RemoveInactiveIPs();
-                foreach (var ipAddress in ipSemaphores.Keys.ToList())
+                // 懒惰补充令牌
+                var now = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                var last = this.cacheService.Get<long>(lastKey);
+                if (last == default)
                 {
-                    for (int i = 0; i < rateLimit; i++)
-                    {
-                        var currentBucket = this.cacheService.ListGetAll<long>(GetIpCacheKey(ipAddress));
-                        // 桶满不加
-                        if (currentBucket.Count != bucketSize) this.cacheService.ListAdd<long>(GetIpCacheKey(ipAddress), generateTokenBucketDate);
-                    }
+                    last = now;
                 }
+                double timeDiff = (now - last) / 1000.0; // 转换为秒
+                double toAddDouble = rateLimit * timeDiff;
+                int toAdd = (int)toAddDouble;
+                int currentTokens = this.cacheService.Get<int>(tokensKey);
+                currentTokens = Math.Min(currentTokens + toAdd, bucketSize);
+                if (currentTokens <= 0)
+                {
+                    return false; // 无令牌，拒绝
+                }
+                currentTokens--; // 消耗一个
+                this.cacheService.Set<int>(tokensKey, currentTokens);
+                this.cacheService.Set<long>(lastKey, now);
+                return true;
             }
             finally
             {
@@ -143,29 +140,23 @@ namespace YuanRateLimiter.Core.TokenBucket
         }
 
         /// <summary>
-        /// 获取Ip特定的缓存Key
+        /// 获取IP特定的令牌键
         /// </summary>
         /// <param name="ipAddress"></param>
         /// <returns></returns>
-        private string GetIpCacheKey(string ipAddress) => config.CacheKey + ":" + ipAddress;
+        private string GetIpTokensKey(string ipAddress)
+        {
+            return config.CacheKey + ":" + ipAddress + "_tokens";
+        }
 
         /// <summary>
-        /// 定期删除不活跃的IP并移除相应ipSemaphores
+        /// 获取IP特定的最后时间键
         /// </summary>
-        private void RemoveInactiveIPs()
+        /// <param name="ipAddress"></param>
+        /// <returns></returns>
+        private string GetIpLastKey(string ipAddress)
         {
-            var currentTimestamp = DateTimeOffset.Now.ToUnixTimeSeconds();
-            var inactiveIPs = ipSemaphores.Keys.Where(ip =>
-            {
-                var lastActivity = cacheService.ListGetAll<long>(GetIpCacheKey(ip)).LastOrDefault();
-                return lastActivity > 0 && (currentTimestamp - lastActivity) > (bucketSize / (double)rateLimit * 4);  // 桶满时间的4倍
-            }).ToList();
-            foreach (var inactiveIP in inactiveIPs)
-            {
-                ipSemaphores[inactiveIP].Dispose();
-                ipSemaphores.Remove(inactiveIP);
-                this.cacheService.DelKey(GetIpCacheKey(inactiveIP));
-            }
+            return config.CacheKey + ":" + ipAddress + "_last";
         }
 
         /// <summary>
@@ -175,12 +166,13 @@ namespace YuanRateLimiter.Core.TokenBucket
         {
             if (!disposed)
             {
-                this.timer?.Dispose();
-                foreach (var semaphore in ipSemaphores)
+                foreach (var kvp in ipSemaphores)
                 {
-                    this.cacheService.DelKey(semaphore.Key);
-                    semaphore.Value.Dispose();
+                    this.cacheService.DelKey(GetIpTokensKey(kvp.Key));
+                    this.cacheService.DelKey(GetIpLastKey(kvp.Key));
+                    kvp.Value.Dispose();
                 }
+                ipSemaphores.Clear();
                 disposed = true;
             }
         }
