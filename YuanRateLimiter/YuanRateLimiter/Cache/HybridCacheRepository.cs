@@ -25,8 +25,9 @@ namespace YuanRateLimiter.Cache
         private readonly TimeSpan initialBackoffInterval = TimeSpan.FromSeconds(2); // 降级后初始重试间隔
         private readonly TimeSpan maxBackoffInterval = TimeSpan.FromSeconds(30); // 降级后最大重试间隔
         private int backoffAttempts = 0; // 降级后重试次数
-        private readonly CancellationTokenSource cts = new CancellationTokenSource();  // 服务停止时取消后台 Redis 健康检查任务
         private readonly object redisAvailabilityLock = new object();  // 在多线程环境中同步访问和修改 redisAvailable 状态的锁对象
+        private CancellationTokenSource cts = new CancellationTokenSource();  // 服务停止时取消后台 Redis 健康检查任务
+        private bool disposed = false;
 
         public bool IsAvailable => memoryCache.IsAvailable;
 
@@ -378,13 +379,23 @@ namespace YuanRateLimiter.Cache
         /// <summary>
         /// 销毁
         /// </summary>
-        public void Dispose() 
+        public void Dispose()
         {
+            if (disposed) return;
             if (this.cts != null)
             {
-                this.cts.Cancel();
+                try
+                {
+                    this.cts.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // 忽略已处置异常（防御性编程）
+                }
                 this.cts.Dispose();
+                this.cts = null;
             }
+            disposed = true;
         }
     }
 }
