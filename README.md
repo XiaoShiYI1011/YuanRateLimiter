@@ -32,7 +32,7 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 1. NuGet安装
 
     ```
-    NuGet\Install-Package YuanRateLimiter -Version 2.4.1
+    NuGet\Install-Package YuanRateLimiter -Version 2.4.3
     ```
 
 2. 使用
@@ -164,17 +164,18 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 
 ## 🧾更新日志
 
+- v2.4.3
+  - 【FIX】 修复 HybridCacheRepository.Dispose() 中的 ObjectDisposedException，确保 Dispose 方法幂等，支持多平台（如 Linux）下的关闭处理，提升整体稳定性
+- ~~v2.4.2~~（弃用）
 - v2.4.1
   - 【PERF】重构令牌桶算法核心架构：将定时器主动补充令牌改为请求时懒惰计算，大幅提升性能
   - 【OPT】移除`System.Threading.Timer`依赖，减少线程调度开销和潜在计时器问题
   - 【OPT】优化存储结构，令牌计数从List存储改为Key-Value存储，显著降低内存占用
   - 【OPT】简化IPTokenBucket逻辑，移除"清理不活跃IP"的定时任务，依赖缓存过期机制
   - 【FIX】确保令牌桶算法在高并发场景下的一致性，避免令牌超发问题
-
 - v2.4.0
   - 【ADD】增加混合缓存：以 Redis作为主缓存，内存缓存作为降级缓存的双重缓存机制，Redis 不可用时自动切换，保障限流功能不中断
   - 【ADD】增加双写策略：Redis可用时，缓存数据同时写入Redis和内存，提升本地读取速度，增强缓存高可用性
-
 - v2.3.6
   - 【BUG】[修复触发限流时的响应体类型`text/plain;charset=utf-8  ==>  application/json;charset=utf-8`](https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter/commit/e41a3e70d100a2d5e0c12daa55045c2b19eb6a91)
 - v2.3.3
@@ -305,7 +306,7 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
     - ...
 
 2. 我们团队(元代码科技工作室)的主要技术栈：.Net 、Vue、Java、鸿蒙等
-    - 包括：移动端应用/ 电脑桌面应用 / 网站开发 / 鸿蒙应用 / 微信、支付宝、字节等第三方小程序或网站开发
+    - 包括：移动端应用 / 电脑桌面应用 / 网站开发 / 鸿蒙应用 / 微信、支付宝、字节等第三方小程序或网站开发
 3. 我们提供高质量的开发服务，所有项目单子，均为源码交付。大金额单子需要签订合同
 4. 联系方式：[xiaoshiyi1011@163.com](mailto:xiaoshiyi1011@163.com)
 
