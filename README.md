@@ -1,15 +1,15 @@
 <div align="center"><img  src="https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter/raw/master/Doc/images/logo.jpg" width="120" height="120" style="margin-bottom: 10px;"/></div>
 <div align="center"><strong><span style="font-size: x-large;">YuanRateLimiter</span></strong></div>
 <div align="center"><h4 align="center">不断更新迭代中...</h4></div>
-<div align="center"><p stylt="text-align: center;">我觉得此项目开源的初衷在于，支持.Net开源生态的发展。让我康康谁还说.Net没生态的😎</p></div>
+<div align="center"><p stylt="text-align: center;">我觉得此项目开源的初衷在于，支持.Net中国开源生态的发展。让我康康谁还说.Net没生态的😎</p></div>
 
 ### ✨如果您觉得有帮助，请点右上角 "Star" 支持一下谢谢
 
 ## 🎇框架介绍
 
-YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间件，适用于需要对接口请求进行精细化控制的场景。配置灵活：通过 `appsettings.json` 文件配置，提供了**令牌桶、漏桶、滑动窗口**三种主流限流算法，支持**全接口、HTTP 方法级、接口路径级**三种限流策略。内置 Redis + MemoryCache 的**混合缓存**与**容错缓存**机制，确保在 Redis 宕机时限流仍正常限流。值得注意的是NET 7/8自带了完善的限流中间件，友情链接：[ASP.NET Core 中的速率限制中间件 | Microsoft Learn](https://learn.microsoft.com/zh-cn/aspnet/core/performance/rate-limit?view=aspnetcore-8.0)。如果你是NET 7/8及以上开发的项目，请使用NET 7/8自带的限流中间件（或者你嫌官方的配置太麻烦也可以用这个嘻嘻😚）。温馨提示：请根据您的测试环境进行严格的压力测试后再投入到生产环境使用。
+YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间件，适用于需要对接口请求进行精细化控制的场景。配置灵活：通过 `appsettings.json` 文件配置，提供了**令牌桶、漏桶、滑动窗口**三种主流限流算法，支持**全接口、HTTP 方法级、接口路径级**三种限流策略。内置 Redis + MemoryCache 的**混合缓存**与**容错缓存**机制，确保在 Redis 宕机时限流仍正常限流。值得注意的是NET 7/8自带了完善的限流中间件，友情链接：[ASP.NET Core 中的速率限制中间件 | Microsoft Learn](https://learn.microsoft.com/zh-cn/aspnet/core/performance/rate-limit?view=aspnetcore-8.0)。如果你是NET 7/8及以上开发的项目，请使用NET 7/8自带的限流中间件（或者你嫌官方的配置太麻烦也可以用这个嘻嘻😚）。温馨提示：请根据您的生产环境进行严格的压力测试后再投入到生产环境使用。
 
-> 🎯 如果你不想引入国外复杂的限流组件，或需要更灵活的配置方式，YuanRateLimiter 是一个轻量且强大的选择。
+> 🎯 如果你不想引入国外复杂的限流组件，看不懂英文的文档，或需要更灵活的配置方式，YuanRateLimiter 是一个轻量且强大的选择。
 
 ------
 
@@ -298,21 +298,21 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 - 启用双写策略会增加内存使用，请根据服务器资源酌情开启
 - 若使用 .NET 7/8/9，也可考虑官方内置的限流中间件（但配置更复杂）
 
-## 🤝商业合作
+## 🤝定制化咨询与技术服务
 
-1. 我们团队(元代码科技工作室)专业从事软件开发、网站开发等多个领域。如果您有以下需求，欢迎与我们联系：
-    - 移动端应用 / 电脑桌面应用 / 网站开发 / 鸿蒙应用 / 微信、支付宝、字节等第三方小程序或网站开发
-    - 定制解决方案
-    - ...
+本项目源自**星河架构**中核心组件的独立开源版本，依托该架构在高并发、企业级系统设计上的技术沉淀。另外我们承接**制造业数字化领域**全链路定制化开发与技术咨询：
 
-2. 我们团队(元代码科技工作室)的主要技术栈：.Net 、Vue、Java、鸿蒙等
-    - 包括：移动端应用 / 电脑桌面应用 / 网站开发 / 鸿蒙应用 / 微信、支付宝、字节等第三方小程序或网站开发
-3. 我们提供高质量的开发服务，所有项目单子，均为源码交付。大金额单子需要签订合同
-4. 联系方式：[xiaoshiyi1011@163.com](mailto:xiaoshiyi1011@163.com)
+1. 本限流中间件的二次开发、架构适配与生产级落地保障
+2. 制造业ERP、OA等企业级数字化系统的定制开发与架构设计
+3. 定制化解决方案
+4. ...
+
+联系方式：[xiaoshiyi1011@163.com](mailto:xiaoshiyi1011@163.com)
 
 ##  🔐版权声明
 
 - 该项目签署了MIT授权许可，详情请参阅 [LICENSE](https://gitee.com/XiaoShiYi-1011/yuan-rate-limiter/raw/master/LICENSE)，源码完全免费开源商用。
+- 本项目已取得计算机软件著作权登记证书（登记号：**2026SR0385962**）
 - 不能以任何形式将该项目用于非法为目的的行为。
 - 任何基于本软件而产生的一切法律纠纷和责任，均于作者无关。
 
