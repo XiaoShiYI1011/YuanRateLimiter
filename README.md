@@ -32,7 +32,7 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 1. NuGet安装
 
     ```
-    NuGet\Install-Package YuanRateLimiter -Version 2.4.3
+    NuGet\Install-Package YuanRateLimiter -Version 2.4.4
     ```
 
 2. 使用
@@ -136,12 +136,12 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
           ],
           "ActionFlowLimiterRules": [
             {
-              "Path": "/api/Test/Test01",
+              "Path": "/api/Test/Test01", // 精确匹配，优先级最高
               "Capacity": 10,
               "RateLimit": 2
             },
             {
-              "Path": "/api/Test/Test03",
+              "Path": "/api/Test/**", // 多级通配，匹配 /api/Test 及其下所有子路径
               "Capacity": 1000,
               "RateLimit": 1
             }
@@ -150,6 +150,15 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
       }
     }
     ```
+
+    Action 路径通配符说明：
+
+    - 精确路径优先，例如 `/api/Test/Test01` 会优先于 `/api/Test/**` 命中。
+    - `*`：匹配单个路径段，例如 `/api/Order/*` 可匹配 `/api/Order/1001`，不匹配 `/api/Order/1001/detail`。
+    - `**`：匹配多级路径，例如 `/api/Test/**` 可匹配 `/api/Test`、`/api/Test/Test01`、`/api/Test/A/B`。
+    - `?`：匹配单个字符，例如 `/api/User/?` 可匹配 `/api/User/1`，不匹配 `/api/User/12`。
+    - `{param}`：匹配一个路径段，例如 `/api/Product/{id}` 可匹配 `/api/Product/1001`，不匹配 `/api/Product`。
+    - 多条通配符同时命中时，按配置顺序使用第一条规则。
     
 3. 极简使用的 `appsettings.json` 文件示例（不用Redis、容错、双写，就单单用限流【懒人专属】）
 
@@ -164,6 +173,15 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 
 ## 🧾更新日志
 
+- v2.4.4
+  - 【ADD】新增 Action 级 API 路径通配符，支持 `*`、`**`、`?`、`{param}`，并保持精确路径优先
+  - 【FIX】修复 IP 黑名单判断条件错误的问题，避免 `IpBlackList` 配置在部分场景下不生效
+  - 【FIX】修复 IP 黑白名单使用字符串包含匹配导致的误判问题，改为精确匹配
+  - 【FIX】修复 Method / Action 级限流共用同一缓存 Key 的问题，避免不同接口或请求方法互相影响
+  - 【FIX】修复滑动窗口 Action 级规则误用 `RateLimit` 作为最大请求数的问题，统一使用 `MaxRequests`
+  - 【FIX】修复漏桶算法在并发请求不同规则时，规则参数可能被实例字段覆盖的问题
+  - 【ADD】新增限流配置容错校验，配置缺失、枚举写错、规则为空或数值非法时不再导致宿主项目启动失败，并输出明确中文提示
+  - 【OPT】Redis 启动重试改为使用 `RedisRetryDelayMs` 配置，并限制异常重试参数，避免错误配置导致宿主启动长时间阻塞
 - v2.4.3
   - 【FIX】 修复 HybridCacheRepository.Dispose() 中的 ObjectDisposedException，确保 Dispose 方法幂等，支持多平台（如 Linux）下的关闭处理，提升整体稳定性
 - ~~v2.4.2~~（弃用）
@@ -209,7 +227,8 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 
 ## 📑更新计划
 
--  增加Api路径通配符🛠
+-  Redis 后端使用 Lua 脚本实现分布式原子限流，MemoryCache 后端继续使用本地锁🛠
+-  增加Api路径通配符✔
 -  增加容错缓存机制，Redis宕机时自动降级到内存缓存，增加双写策略✔
 -  集成固定窗口算法（暂缓该算法开发）🛠
 -  完善使用文档✔
