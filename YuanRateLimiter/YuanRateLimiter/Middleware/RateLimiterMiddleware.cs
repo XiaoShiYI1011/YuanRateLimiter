@@ -43,13 +43,13 @@ namespace YuanRateLimiter.Middleware
                 return;
             }
             string requestIp = IPUtil.GetClientIPv4(context);
-            var isIpWhiteList = config.IpWhiteList != null && config.IpWhiteList.Where(i => i.Contains(requestIp)).Any();  // 白名单
+            var isIpWhiteList = IsIpInList(config.IpWhiteList, requestIp);  // 白名单
             if (isIpWhiteList)
             {
                 await this.next(context);
                 return;
             }
-            var isIpBlackList = config.IpWhiteList != null && config.IpBlackList.Where(i => i.Contains(requestIp)).Any();  // 黑名单
+            var isIpBlackList = IsIpInList(config.IpBlackList, requestIp);  // 黑名单
             if (isIpBlackList)
             {
                 context.Response.StatusCode = 403;
@@ -68,7 +68,7 @@ namespace YuanRateLimiter.Middleware
                 context.Response.ContentType = "application/json;charset=utf-8";
                 var responseMessage = new
                 {
-                    statusCode = 429,
+                    statusCode = config.HttpStatusCode,
                     message = config.LimitingMessage
                 };
                 await context.Response.WriteAsync(JsonSerializer.Serialize(responseMessage));
@@ -76,6 +76,11 @@ namespace YuanRateLimiter.Middleware
                 return;
             }
             await this.next(context);
+        }
+
+        private static bool IsIpInList(string[] ipList, string requestIp)
+        {
+            return !string.IsNullOrWhiteSpace(requestIp) && ipList != null && ipList.Any(ip => string.Equals(ip?.Trim(), requestIp, StringComparison.OrdinalIgnoreCase));
         }
     }
 }
