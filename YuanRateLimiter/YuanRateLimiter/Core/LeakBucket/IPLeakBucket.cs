@@ -1,5 +1,5 @@
-﻿using System.Collections.Concurrent;
-using System.Linq;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -7,7 +7,6 @@ using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
 using YuanRateLimiter.Core.Interface;
-using YuanRateLimiter.Enum;
 using YuanRateLimiter.Utils;
 
 namespace YuanRateLimiter.Core.LeakBucket
@@ -21,21 +20,15 @@ namespace YuanRateLimiter.Core.LeakBucket
     {
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
-        private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
         private readonly ConcurrentDictionary<string, SemaphoreSlim> ipSemaphores = new ConcurrentDictionary<string, SemaphoreSlim>();
-        private readonly System.Timers.Timer timer;
+        private readonly ConcurrentDictionary<string, byte> trackedCacheKeys = new ConcurrentDictionary<string, byte>();
         private bool disposed = false;
-        private int bucketSize;
-        private int rateLimit;
 
         public IPLeakBucket(ICacheService cacheService, RateLimiterConfig config)
         {
             this.cacheService = cacheService;
             this.config = config;
             if (string.IsNullOrEmpty(config.CacheKey)) config.CacheKey = CacheKey.RateLimiterCacheKey;
-            timer = new System.Timers.Timer(1 * 1000);
-            timer.Elapsed += async (sender, e) => await ConsumeToken();
-            timer.AutoReset = true;
         }
 
         /// <summary>
@@ -45,72 +38,49 @@ namespace YuanRateLimiter.Core.LeakBucket
         /// <returns></returns>
         public async Task<bool> CheckRateLimit(HttpContext context)
         {
-            switch (config.RateLimiterRule.RateLimiterLogLevel)
-            {
-                case RateLimitingLevel.All:  // 全接口限流
-                    rateLimit = config.RateLimiterRule.AllFlowLimiterRule.RateLimit;
-                    bucketSize = config.RateLimiterRule.AllFlowLimiterRule.Capacity;
-                    break;
-                case RateLimitingLevel.Method:  // Method 级别限流
-                    var methodFlowLimitingRules = config.RateLimiterRule.MethodFlowLimiterRules;
-                    var methods = methodFlowLimitingRules.Where(t => t.Method.Equals(context.Request.Method)).ToList();
-                    if (methods.Count <= 0) return true;
-                    rateLimit = methods[0].RateLimit;
-                    bucketSize = methods[0].Capacity;
-                    break;
-                case RateLimitingLevel.Action:  // Action 级别限流
-                    var actionFlowLimitingRules = config.RateLimiterRule.ActionFlowLimiterRules;
-                    var apis = actionFlowLimitingRules.Where(t => t.Path.Equals(context.Request.Path.Value)).ToList();
-                    if (apis.Count <= 0) return true;
-                    rateLimit = apis[0].RateLimit;
-                    bucketSize = apis[0].Capacity;
-                    break;
-                default:  // 默认全接口限流
-                    rateLimit = config.RateLimiterRule.AllFlowLimiterRule.RateLimit;
-                    bucketSize = config.RateLimiterRule.AllFlowLimiterRule.Capacity;
-                    break;
-            }
+            if (!RateLimiterRuleMatcher.TryMatch(config, context, out var rule, out var ruleKey)) return true;
             string ipAddress = IPUtil.GetClientIPv4(context);
-            if (!ipSemaphores.ContainsKey(ipAddress)) ipSemaphores[ipAddress] = new SemaphoreSlim(1, 1);
-            return await GenerateToken(ipAddress);
+            if (string.IsNullOrEmpty(ipAddress)) return false; // 无效IP，拒绝
+            var cacheKey = RateLimiterRuleMatcher.GetIpCacheKey(config, ipAddress, ruleKey);
+            return await GenerateToken(cacheKey, rule.RateLimit, rule.Capacity);
         }
 
         /// <summary>
         /// 生成令牌（加水）
         /// </summary>
+        /// <param name="cacheKey">当前IP和规则组合的缓存Key</param>
+        /// <param name="rateLimit">漏水速率</param>
+        /// <param name="bucketSize">桶容量</param>
         /// <returns></returns>
-        private async Task<bool> GenerateToken(string ipAddress)
+        private async Task<bool> GenerateToken(string cacheKey, int rateLimit, int bucketSize)
         {
-            await ipSemaphores[ipAddress].WaitAsync();
-            try
-            {
-                var currentBucket = this.cacheService.ListGetAll<string>(GetIpCacheKey(ipAddress));
-                if (currentBucket.Count >= bucketSize) return false;  // 水多，溢出
-                this.cacheService.ListAdd(GetIpCacheKey(ipAddress), ipAddress);
-                return true;
-            }
-            finally
-            {
-                ipSemaphores[ipAddress].Release();
-            }
-        }
-
-        /// <summary>
-        /// 消费令牌（漏水）
-        /// </summary>
-        /// <returns></returns>
-        private async Task ConsumeToken()
-        {
+            var semaphore = ipSemaphores.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
             await semaphore.WaitAsync();
             try
             {
-                foreach (var ipAddress in ipSemaphores.Keys.ToList())
+                var lastTimeKey = cacheKey + ":lastTime";
+                var levelKey = cacheKey + ":level";
+                trackedCacheKeys.TryAdd(lastTimeKey, 0);
+                trackedCacheKeys.TryAdd(levelKey, 0);
+                long now = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                // 获取上次时间和水位
+                string lastTimeStr = cacheService.Get<string>(lastTimeKey);
+                long lastTime = string.IsNullOrEmpty(lastTimeStr) ? now : long.Parse(lastTimeStr);
+                string levelStr = cacheService.Get<string>(levelKey);
+                double level = string.IsNullOrEmpty(levelStr) ? 0 : double.Parse(levelStr);
+                // 计算漏水
+                double elapsed = (now - lastTime) / 1000.0;
+                level = Math.Max(0, level - elapsed * rateLimit);
+                // 更新时间
+                cacheService.Set(lastTimeKey, now.ToString());
+                // 尝试加水
+                if (level + 1 <= bucketSize)
                 {
-                    for (int i = 0; i < rateLimit; i++)  // 一秒漏多少水
-                    {
-                        this.cacheService.ListLeftPop<long>(GetIpCacheKey(ipAddress));
-                    }
+                    level += 1;
+                    cacheService.Set(levelKey, level.ToString());
+                    return true;
                 }
+                return false;
             }
             finally
             {
@@ -119,25 +89,21 @@ namespace YuanRateLimiter.Core.LeakBucket
         }
 
         /// <summary>
-        /// 获取Ip特定的缓存Key
-        /// </summary>
-        /// <param name="ipAddress"></param>
-        /// <returns></returns>
-        private string GetIpCacheKey(string ipAddress) => config.CacheKey + ":" + ipAddress;
-
-        /// <summary>
         /// 销毁
         /// </summary>
         public void Dispose()
         {
             if (!disposed)
             {
-                this.timer?.Dispose();
-                foreach (var semaphore in ipSemaphores)
+                foreach (var cacheKey in trackedCacheKeys.Keys)
                 {
-                    this.cacheService.DelKey(semaphore.Key);
-                    semaphore.Value.Dispose();
+                    cacheService.DelKey(cacheKey);
                 }
+                foreach (var kvp in ipSemaphores)
+                {
+                    kvp.Value.Dispose();
+                }
+                ipSemaphores.Clear();
                 disposed = true;
             }
         }

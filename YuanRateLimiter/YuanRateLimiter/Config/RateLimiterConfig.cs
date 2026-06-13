@@ -170,10 +170,10 @@ namespace YuanRateLimiter.Config
     {
         /// <summary>
         /// API路径
-        /// 支持相对路径，如"/api/Test/Test01"
+        /// 支持精确路径和通配符路径，如"/api/Test/Test01"、"/api/Test/*"、"/api/Test/**"、"/api/User/?"、"/api/Product/{id}"
         /// 必填配置项
         /// </summary>
-        /// <example>"/api/Test/Test01"</example>
+        /// <example>"/api/Test/**"</example>
         public string Path { get; set; }
     }
 }

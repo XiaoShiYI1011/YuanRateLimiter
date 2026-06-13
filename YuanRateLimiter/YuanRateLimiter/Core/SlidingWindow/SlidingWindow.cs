@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Linq;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -7,7 +7,6 @@ using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
 using YuanRateLimiter.Core.Interface;
-using YuanRateLimiter.Enum;
 
 namespace YuanRateLimiter.Core.SlidingWindow
 {
@@ -21,6 +20,7 @@ namespace YuanRateLimiter.Core.SlidingWindow
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
         private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+        private readonly ConcurrentDictionary<string, byte> trackedCacheKeys = new ConcurrentDictionary<string, byte>();
         private bool disposed = false;
 
         public SlidingWindow(ICacheService cacheService, RateLimiterConfig config)
@@ -37,33 +37,8 @@ namespace YuanRateLimiter.Core.SlidingWindow
         /// <returns></returns>
         public async Task<bool> CheckRateLimit(HttpContext context)
         {
-            int windowSize, maxRequests;
-            switch (config.RateLimiterRule.RateLimiterLogLevel)
-            {
-                case RateLimitingLevel.All:  // 全接口限流
-                    maxRequests = config.RateLimiterRule.AllFlowLimiterRule.MaxRequests;
-                    windowSize = config.RateLimiterRule.AllFlowLimiterRule.WindowSize;
-                    break;
-                case RateLimitingLevel.Method:  // Method 级别限流
-                    var methodFlowLimitingRules = config.RateLimiterRule.MethodFlowLimiterRules;
-                    var methods = methodFlowLimitingRules.Where(t => t.Method.Equals(context.Request.Method)).ToList();
-                    if (methods.Count <= 0) return true;
-                    maxRequests = methods[0].MaxRequests;
-                    windowSize = methods[0].WindowSize;
-                    break;
-                case RateLimitingLevel.Action:  // Action 级别限流
-                    var actionFlowLimitingRules = config.RateLimiterRule.ActionFlowLimiterRules;
-                    var apis = actionFlowLimitingRules.Where(t => t.Path.Equals(context.Request.Path.Value)).ToList();
-                    if (apis.Count <= 0) return true;
-                    maxRequests = apis[0].RateLimit;
-                    windowSize = apis[0].WindowSize;
-                    break;
-                default:  // 默认全接口限流
-                    maxRequests = config.RateLimiterRule.AllFlowLimiterRule.MaxRequests;
-                    windowSize = config.RateLimiterRule.AllFlowLimiterRule.WindowSize;
-                    break;
-            }
-            return await RequestWindow(TimeSpan.FromSeconds(windowSize), maxRequests);
+            if (!RateLimiterRuleMatcher.TryMatch(config, context, out var rule, out var ruleKey)) return true;
+            return await RequestWindow(TimeSpan.FromSeconds(rule.WindowSize), rule.MaxRequests, RateLimiterRuleMatcher.GetCacheKey(config, ruleKey));
         }
 
         /// <summary>
@@ -71,21 +46,23 @@ namespace YuanRateLimiter.Core.SlidingWindow
         /// </summary>
         /// <param name="windowSize">窗口大小（单位：秒）</param>
         /// <param name="maxRequests">最大请求数</param>
+        /// <param name="cacheKey">当前规则的缓存Key</param>
         /// <returns></returns>
-        private async Task<bool> RequestWindow(TimeSpan windowSize, int maxRequests)
+        private async Task<bool> RequestWindow(TimeSpan windowSize, int maxRequests, string cacheKey)
         {
             await semaphore.WaitAsync();
             try
             {
+                trackedCacheKeys.TryAdd(cacheKey, 0);
                 bool result = true;
                 var currentTime = DateTimeOffset.Now.ToUnixTimeSeconds();
-                var requestList = this.cacheService.ListGetAll<RequestQueue>(config.CacheKey);
+                var requestList = this.cacheService.ListGetAll<RequestQueue>(cacheKey);
                 while (requestList.Count > 0 && requestList[0].RequestTime < currentTime - windowSize.TotalSeconds)
                 {
-                    this.cacheService.ListLeftPop<RequestQueue>(config.CacheKey);
-                    requestList = this.cacheService.ListGetAll<RequestQueue>(config.CacheKey);
+                    this.cacheService.ListLeftPop<RequestQueue>(cacheKey);
+                    requestList = this.cacheService.ListGetAll<RequestQueue>(cacheKey);
                 }
-                if (requestList.Count < maxRequests) this.cacheService.ListAdd(config.CacheKey, new RequestQueue { RequestTime = currentTime });
+                if (requestList.Count < maxRequests) this.cacheService.ListAdd(cacheKey, new RequestQueue { RequestTime = currentTime });
                 else result = false;
                 return result;
             }
@@ -103,7 +80,10 @@ namespace YuanRateLimiter.Core.SlidingWindow
             if (!disposed)
             {
                 semaphore.Dispose();
-                this.cacheService.DelKey(config.CacheKey);
+                foreach (var cacheKey in trackedCacheKeys.Keys)
+                {
+                    this.cacheService.DelKey(cacheKey);
+                }
                 disposed = true;
             }
         }

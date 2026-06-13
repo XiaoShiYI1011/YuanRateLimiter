@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -8,7 +7,6 @@ using YuanRateLimiter.Cache;
 using YuanRateLimiter.Config;
 using YuanRateLimiter.Const;
 using YuanRateLimiter.Core.Interface;
-using YuanRateLimiter.Enum;
 using YuanRateLimiter.Utils;
 
 namespace YuanRateLimiter.Core.SlidingWindow
@@ -23,6 +21,7 @@ namespace YuanRateLimiter.Core.SlidingWindow
         private readonly ICacheService cacheService;
         private readonly RateLimiterConfig config;
         private readonly ConcurrentDictionary<string, SemaphoreSlim> ipSemaphores = new ConcurrentDictionary<string, SemaphoreSlim>();
+        private readonly ConcurrentDictionary<string, byte> trackedCacheKeys = new ConcurrentDictionary<string, byte>();
         private bool disposed = false;
 
         public IPSlidingWindow(ICacheService cacheService, RateLimiterConfig config)
@@ -39,35 +38,11 @@ namespace YuanRateLimiter.Core.SlidingWindow
         /// <returns></returns>
         public async Task<bool> CheckRateLimit(HttpContext context)
         {
-            int windowSize, maxRequests;
-            switch (config.RateLimiterRule.RateLimiterLogLevel)
-            {
-                case RateLimitingLevel.All:  // 全接口限流
-                    maxRequests = config.RateLimiterRule.AllFlowLimiterRule.MaxRequests;
-                    windowSize = config.RateLimiterRule.AllFlowLimiterRule.WindowSize;
-                    break;
-                case RateLimitingLevel.Method:  // Method 级别限流
-                    var methodFlowLimitingRules = config.RateLimiterRule.MethodFlowLimiterRules;
-                    var methods = methodFlowLimitingRules.Where(t => t.Method.Equals(context.Request.Method)).ToList();
-                    if (methods.Count <= 0) return true;
-                    maxRequests = methods[0].MaxRequests;
-                    windowSize = methods[0].WindowSize;
-                    break;
-                case RateLimitingLevel.Action:  // Action 级别限流
-                    var actionFlowLimitingRules = config.RateLimiterRule.ActionFlowLimiterRules;
-                    var apis = actionFlowLimitingRules.Where(t => t.Path.Equals(context.Request.Path.Value)).ToList();
-                    if (apis.Count <= 0) return true;
-                    maxRequests = apis[0].RateLimit;
-                    windowSize = apis[0].WindowSize;
-                    break;
-                default:  // 默认全接口限流
-                    maxRequests = config.RateLimiterRule.AllFlowLimiterRule.MaxRequests;
-                    windowSize = config.RateLimiterRule.AllFlowLimiterRule.WindowSize;
-                    break;
-            }
+            if (!RateLimiterRuleMatcher.TryMatch(config, context, out var rule, out var ruleKey)) return true;
             string ipAddress = IPUtil.GetClientIPv4(context);
-            if (!ipSemaphores.ContainsKey(ipAddress)) ipSemaphores[ipAddress] = new SemaphoreSlim(1, 1);
-            return await RequestWindow(TimeSpan.FromSeconds(windowSize), maxRequests, ipAddress);
+            if (string.IsNullOrEmpty(ipAddress)) return false; // 无效IP，拒绝
+            var cacheKey = RateLimiterRuleMatcher.GetIpCacheKey(config, ipAddress, ruleKey);
+            return await RequestWindow(TimeSpan.FromSeconds(rule.WindowSize), rule.MaxRequests, cacheKey);
         }
 
         /// <summary>
@@ -75,36 +50,32 @@ namespace YuanRateLimiter.Core.SlidingWindow
         /// </summary>
         /// <param name="windowSize">窗口大小（单位：秒）</param>
         /// <param name="maxRequests">最大请求数</param>
+        /// <param name="cacheKey">当前IP和规则组合的缓存Key</param>
         /// <returns></returns>
-        private async Task<bool> RequestWindow(TimeSpan windowSize, int maxRequests, string ipAddress)
+        private async Task<bool> RequestWindow(TimeSpan windowSize, int maxRequests, string cacheKey)
         {
-            await ipSemaphores[ipAddress].WaitAsync();
+            var semaphore = ipSemaphores.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
+            await semaphore.WaitAsync();
             try
             {
+                trackedCacheKeys.TryAdd(cacheKey, 0);
                 bool result = true;
                 var currentTime = DateTimeOffset.Now.ToUnixTimeSeconds();
-                var requestList = this.cacheService.ListGetAll<RequestQueue>(GetIpCacheKey(ipAddress));
+                var requestList = this.cacheService.ListGetAll<RequestQueue>(cacheKey);
                 while (requestList.Count > 0 && requestList[0].RequestTime < currentTime - windowSize.TotalSeconds)
                 {
-                    this.cacheService.ListLeftPop<RequestQueue>(GetIpCacheKey(ipAddress));
-                    requestList = this.cacheService.ListGetAll<RequestQueue>(GetIpCacheKey(ipAddress));
+                    this.cacheService.ListLeftPop<RequestQueue>(cacheKey);
+                    requestList = this.cacheService.ListGetAll<RequestQueue>(cacheKey);
                 }
-                if (requestList.Count < maxRequests) this.cacheService.ListAdd(GetIpCacheKey(ipAddress), new RequestQueue { RequestTime = currentTime });
+                if (requestList.Count < maxRequests) this.cacheService.ListAdd(cacheKey, new RequestQueue { RequestTime = currentTime });
                 else result = false;
                 return result;
             }
             finally
             {
-                ipSemaphores[ipAddress].Release();
+                semaphore.Release();
             }
         }
-
-        /// <summary>
-        /// 获取Ip特定的缓存Key
-        /// </summary>
-        /// <param name="ipAddress"></param>
-        /// <returns></returns>
-        private string GetIpCacheKey(string ipAddress) => config.CacheKey + ":" + ipAddress;
 
         /// <summary>
         /// 销毁
@@ -113,11 +84,15 @@ namespace YuanRateLimiter.Core.SlidingWindow
         {
             if (!disposed)
             {
+                foreach (var cacheKey in trackedCacheKeys.Keys)
+                {
+                    this.cacheService.DelKey(cacheKey);
+                }
                 foreach (var semaphore in ipSemaphores)
                 {
-                    this.cacheService.DelKey(semaphore.Key);
                     semaphore.Value.Dispose();
                 }
+                ipSemaphores.Clear();
                 disposed = true;
             }
         }
