@@ -24,6 +24,8 @@ namespace YuanRateLimiter
     /// </summary>
     public static class RateLimiterSetUp
     {
+        internal static Func<string, RedisClientRegistration> RedisClientFactory { get; set; } = CreateRedisClientRegistration;
+
         /// <summary>
         /// 注册限流服务
         /// </summary>
@@ -139,16 +141,15 @@ namespace YuanRateLimiter
                 int maxRetries = rateLimitingConfig.RedisRetryCount;
                 int retryCount = 0;
                 bool isConnected = false;
-                FullRedis redis = null;
+                RedisClientRegistration redis = null;
                 Exception lastException = null;
                 while (retryCount < maxRetries && !isConnected)
                 {
                     try
                     {
-                        redis = new FullRedis();
-                        redis.Init(redisConnSrt);
-                        redis.Set("TEST", 1, 1);
-                        redis.Remove("TEST");
+                        redis = RedisClientFactory(redisConnSrt);
+                        redis.Adapter.Set("TEST", 1, 1);
+                        redis.Adapter.Remove("TEST");
                         isConnected = true;
                     }
                     catch (Exception ex)
@@ -162,9 +163,10 @@ namespace YuanRateLimiter
                 if (isConnected)
                 {
                     // 注册 Redis 客户端
-                    services.AddSingleton(redis);
+                    if (redis.RedisClient != null) services.AddSingleton(redis.RedisClient);
+                    services.AddSingleton(redis.Adapter);
                     // 注册 Redis 缓存服务
-                    services.AddSingleton<RedisCacheRepository>();
+                    services.AddSingleton(provider => new RedisCacheRepository(provider.GetRequiredService<IRedisClientAdapter>()));
                     LogInformation(logger, "Redis连接成功");
                     // 如果启用降级缓存，使用混合缓存服务
                     if (rateLimitingConfig.EnableFallbackCache)
@@ -185,6 +187,13 @@ namespace YuanRateLimiter
                     LogWarning(logger, $"限流中间件缓存服务警告，Redis 连接失败，经过{maxRetries}次重试后使用内存缓存。最后错误：{lastException?.Message}");
                 }
             }
+        }
+
+        private static RedisClientRegistration CreateRedisClientRegistration(string redisConnSrt)
+        {
+            var redis = new FullRedis();
+            redis.Init(redisConnSrt);
+            return new RedisClientRegistration(redis, new FullRedisClientAdapter(redis));
         }
 
         /// <summary>

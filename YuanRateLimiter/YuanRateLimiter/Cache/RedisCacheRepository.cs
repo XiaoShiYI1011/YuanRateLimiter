@@ -13,10 +13,15 @@ namespace YuanRateLimiter.Cache
     /// </summary>
     internal class RedisCacheRepository : ICacheService
     {
-        private readonly FullRedis redisClient;
+        private readonly IRedisClientAdapter redisClient;
         private volatile bool isAvailable = true;
 
         public RedisCacheRepository(FullRedis redisClient)
+            : this(new FullRedisClientAdapter(redisClient))
+        {
+        }
+
+        internal RedisCacheRepository(IRedisClientAdapter redisClient)
         {
             this.redisClient = redisClient;
             TestConnection();
@@ -66,7 +71,7 @@ namespace YuanRateLimiter.Cache
         /// <typeparam name="T">序列化类型</typeparam>
         /// <param name="key">Key</param>
         /// <param name="value">Value</param>
-        public void ListAdd<T>(string key, T value) => this.redisClient.RPUSH(key, value);
+        public void ListAdd<T>(string key, T value) => this.redisClient.ListAdd(key, value);
 
         /// <summary>
         /// List（头）左推
@@ -75,7 +80,16 @@ namespace YuanRateLimiter.Cache
         /// <param name="key">Key</param>
         /// <param name="values">Value</param>
         /// <returns></returns>
-        public int ListLeftPush<T>(string key, IEnumerable<T> values) => this.redisClient.LPUSH(key, values);
+        public int ListLeftPush<T>(string key, IEnumerable<T> values)
+        {
+            int count = 0;
+            foreach (var value in values)
+            {
+                this.redisClient.ListLeftPushOne(key, value);
+                count++;
+            }
+            return count;
+        }
 
         /// <summary>
         /// List（尾）右推
@@ -84,7 +98,16 @@ namespace YuanRateLimiter.Cache
         /// <param name="key">Key</param>
         /// <param name="values">Value</param>
         /// <returns></returns>
-        public int ListRightPush<T>(string key, IEnumerable<T> values) => this.redisClient.RPUSH(key, values);
+        public int ListRightPush<T>(string key, IEnumerable<T> values)
+        {
+            int count = 0;
+            foreach (var value in values)
+            {
+                this.redisClient.ListRightPushOne(key, value);
+                count++;
+            }
+            return count;
+        }
 
         /// <summary>
         /// 根据 Key 删除缓存数据
@@ -98,7 +121,7 @@ namespace YuanRateLimiter.Cache
         /// <typeparam name="T">序列化类型</typeparam>
         /// <param name="key">Key</param>
         /// <returns></returns>
-        public T ListLeftPop<T>(string key) => this.redisClient.LPOP<T>(key);
+        public T ListLeftPop<T>(string key) => this.redisClient.ListLeftPop<T>(key);
 
         /// <summary>
         /// List（尾）右删，返回最右边一个元素
@@ -106,7 +129,7 @@ namespace YuanRateLimiter.Cache
         /// <typeparam name="T">序列化类型</typeparam>
         /// <param name="key">Key</param>
         /// <returns></returns>
-        public T ListRightPop<T>(string key) => this.redisClient.RPOP<T>(key);
+        public T ListRightPop<T>(string key) => this.redisClient.ListRightPop<T>(key);
 
         /// <summary>
         /// 获取缓存数据
