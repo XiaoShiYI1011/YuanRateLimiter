@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YuanRateLimiter", "YuanRate
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net5.WebApi.Test", "Net5.WebApi.Test\Net5.WebApi.Test.csproj", "{90CDDF62-39C6-4F8D-93D6-A26E79912792}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YuanRateLimiter.Tests", "YuanRateLimiter.Tests\YuanRateLimiter.Tests.csproj", "{C4FA312D-938F-42F6-9ACD-CC4DC2303279}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,6 +31,10 @@ Global
 		{90CDDF62-39C6-4F8D-93D6-A26E79912792}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90CDDF62-39C6-4F8D-93D6-A26E79912792}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90CDDF62-39C6-4F8D-93D6-A26E79912792}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4FA312D-938F-42F6-9ACD-CC4DC2303279}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4FA312D-938F-42F6-9ACD-CC4DC2303279}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4FA312D-938F-42F6-9ACD-CC4DC2303279}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4FA312D-938F-42F6-9ACD-CC4DC2303279}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -36,6 +42,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{1C1C5A51-A9D8-4C59-9415-9E757B1F3269} = {6E1BEB71-6ADD-4B11-A18D-7F55445C0993}
 		{90CDDF62-39C6-4F8D-93D6-A26E79912792} = {6E1BEB71-6ADD-4B11-A18D-7F55445C0993}
+		{C4FA312D-938F-42F6-9ACD-CC4DC2303279} = {6E1BEB71-6ADD-4B11-A18D-7F55445C0993}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E898283B-DE5D-4B8B-9ED8-3BFAD2B001D4}

@@ -20,4 +20,10 @@
 		<PackageReference Include="System.Text.Json" Version="6.0.10"/>
 	</ItemGroup>
 
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+			<_Parameter1>YuanRateLimiter.Tests</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
+
 </Project>

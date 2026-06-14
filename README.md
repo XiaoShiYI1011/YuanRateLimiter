@@ -335,3 +335,95 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 - 不能以任何形式将该项目用于非法为目的的行为。
 - 任何基于本软件而产生的一切法律纠纷和责任，均于作者无关。
 
+
+
+
+
+
+
+
+
+
+
+
+
+```
+using System.Net;
+using Microsoft.AspNetCore.Http;
+using NewLife.Caching;
+using YuanRateLimiter.Cache;
+using YuanRateLimiter.Config;
+using YuanRateLimiter.Enum;
+
+namespace YuanRateLimiter.Tests;
+
+internal static class TestHelpers
+{
+    public static DefaultHttpContext CreateContext(
+        string method = "GET",
+        string path = "/api/test",
+        string? remoteIp = "203.0.113.10")
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Method = method;
+        context.Request.Path = path;
+        context.Response.Body = new MemoryStream();
+        if (remoteIp != null)
+        {
+            context.Connection.RemoteIpAddress = IPAddress.Parse(remoteIp);
+        }
+
+        return context;
+    }
+
+    public static RateLimiterConfig CreateAllConfig(
+        RateLimiterModel model = RateLimiterModel.TokenBucket,
+        bool enableIpLimiter = false,
+        int capacity = 2,
+        int rateLimit = 100,
+        int windowSize = 10,
+        int maxRequests = 2,
+        string? cacheKey = null)
+    {
+        return new RateLimiterConfig
+        {
+            EnableRateLimiter = true,
+            RateLimiterModel = model,
+            EnableIpLimiter = enableIpLimiter,
+            CacheKey = cacheKey ?? UniqueCacheKey(),
+            RateLimiterRule = new RateLimiterRule
+            {
+                RateLimiterLogLevel = RateLimitingLevel.All,
+                AllFlowLimiterRule = new AllFlowLimiterRule
+                {
+                    Capacity = capacity,
+                    RateLimit = rateLimit,
+                    WindowSize = windowSize,
+                    MaxRequests = maxRequests
+                }
+            }
+        };
+    }
+
+    public static MemoryCacheRepository CreateMemoryCache()
+    {
+        return new MemoryCacheRepository(new MemoryCache());
+    }
+
+    public static string UniqueCacheKey()
+    {
+        return "test-" + Guid.NewGuid().ToString("N");
+    }
+
+    public static async Task<string> ReadResponseBodyAsync(HttpContext context)
+    {
+        context.Response.Body.Position = 0;
+        using var reader = new StreamReader(context.Response.Body, leaveOpen: true);
+        return await reader.ReadToEndAsync();
+    }
+}
+
+```
+
+
+
