@@ -26,6 +26,10 @@ namespace YuanRateLimiter
     {
         internal static Func<string, RedisClientRegistration> RedisClientFactory { get; set; } = CreateRedisClientRegistration;
 
+        private sealed class RateLimiterSetUpMarker
+        {
+        }
+
         /// <summary>
         /// 注册限流服务
         /// </summary>
@@ -33,6 +37,7 @@ namespace YuanRateLimiter
         /// <param name="redisConnSrt"></param>
         public static void AddRateLimiterSetUp(this IServiceCollection services, string redisConnSrt = null)
         {
+            EnsureSingleRegistration(services);
             var logger = CreateSetupLogger(services);
             var messages = new List<string>();
             RateLimiterConfig rateLimitingConfig = null;
@@ -62,6 +67,7 @@ namespace YuanRateLimiter
         /// <param name="config"></param>
         public static void AddRateLimiterSetUp(this IServiceCollection services, Func<RateLimiterConfig, RateLimiterConfig> config, string redisConnSrt = null)
         {
+            EnsureSingleRegistration(services);
             var logger = CreateSetupLogger(services);
             var messages = new List<string>();
             RateLimiterConfig rateLimitingConfig = null;
@@ -83,7 +89,7 @@ namespace YuanRateLimiter
             }
 
             rateLimitingConfig = RateLimiterConfigValidator.Normalize(rateLimitingConfig, messages);
-            // 将修正后的配置注册到容器，后续算法和中间件统一读取这一份配置。
+            // 将修正后的配置注册到容器，后续算法和中间件统一读取这一份配置
             services.AddSingleton(rateLimitingConfig);
             LogConfigMessages(logger, messages);
             RegisterRateLimiterServices(services, redisConnSrt, rateLimitingConfig);
@@ -121,6 +127,17 @@ namespace YuanRateLimiter
         }
 
         /// <summary>
+        /// 确保限流服务在当前容器中只注册一次
+        /// </summary>
+        /// <param name="services">服务注册集合</param>
+        /// <exception cref="InvalidOperationException">重复调用 AddRateLimiterSetUp 时抛出</exception>
+        private static void EnsureSingleRegistration(IServiceCollection services)
+        {
+            if (services.Any(service => service.ServiceType == typeof(RateLimiterSetUpMarker))) throw new InvalidOperationException("AddRateLimiterSetUp 在同一 IServiceCollection 中只能调用一次，请合并或移除重复的限流服务注册。");
+            services.AddSingleton<RateLimiterSetUpMarker>();
+        }
+
+        /// <summary>
         /// 注册缓存服务
         /// </summary>
         /// <param name="services"></param>
@@ -134,7 +151,7 @@ namespace YuanRateLimiter
             services.AddSingleton<ICacheService>(provider => provider.GetRequiredService<MemoryCacheRepository>());
             if (string.IsNullOrEmpty(redisConnSrt))
             {
-                LogInformation(logger, "未配置 Redis，默认使用内存缓存");
+                LogInformation(logger, "未配置 Redis，使用本机 MemoryCache；多应用实例之间不共享限流状态。");
             }
             else
             {
@@ -173,7 +190,7 @@ namespace YuanRateLimiter
                     {
                         services.AddSingleton<HybridCacheRepository>();
                         services.AddSingleton<ICacheService>(provider => provider.GetRequiredService<HybridCacheRepository>());
-                        LogInformation(logger, "启用混合缓存服务（Redis + 内存降级）");
+                        LogInformation(logger, "启用混合缓存服务（Redis + 本机内存降级）；Redis 不可用时将不保证全局限流。");
                     }
                     else
                     {
@@ -184,7 +201,7 @@ namespace YuanRateLimiter
                 }
                 else
                 {
-                    LogWarning(logger, $"限流中间件缓存服务警告，Redis 连接失败，经过{maxRetries}次重试后使用内存缓存。最后错误：{lastException?.Message}");
+                    LogWarning(logger, $"限流中间件缓存服务警告，Redis 连接失败，经过{maxRetries}次重试后当前使用本机 MemoryCache；多应用实例之间不共享限流状态。最后错误：{lastException?.Message}");
                 }
             }
         }
@@ -197,7 +214,7 @@ namespace YuanRateLimiter
         }
 
         /// <summary>
-        /// 创建启动阶段日志对象。
+        /// 创建启动阶段日志对象
         /// 日志服务如果尚未注册或创建失败，不影响宿主启动
         /// </summary>
         /// <param name="services"></param>

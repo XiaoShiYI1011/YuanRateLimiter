@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace YuanRateLimiter.Cache
 {
     /// <summary>
-    /// Redis 客户端适配接口，用于隔离第三方客户端并提升缓存仓储的可测试性。
+    /// Redis 客户端适配接口，用于隔离第三方客户端并提升缓存仓储的可测试性
     /// </summary>
     internal interface IRedisClientAdapter
     {
@@ -41,5 +41,14 @@ namespace YuanRateLimiter.Cache
         bool ContainsKey(string key);
 
         bool SetExpire(string key, TimeSpan expire);
+
+        /// <summary>
+        /// 执行单 Key Redis Lua 脚本，并将 Redis 服务器当前毫秒时间自动注入 ARGV[1]
+        /// </summary>
+        /// <param name="key">用于集群路由和脚本执行的 Key</param>
+        /// <param name="script">Lua 脚本</param>
+        /// <param name="arguments">传入脚本的其余 ARGV 参数，从 ARGV[2] 开始</param>
+        /// <returns>脚本返回的整数结果</returns>
+        long Eval(string key, string script, params object[] arguments);
     }
 }

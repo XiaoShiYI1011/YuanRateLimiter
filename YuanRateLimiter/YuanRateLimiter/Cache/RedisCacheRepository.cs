@@ -11,7 +11,7 @@ namespace YuanRateLimiter.Cache
     /// 创 建 者：十一 
     /// 创建时间：2023/11/20 22:24:58 
     /// </summary>
-    internal class RedisCacheRepository : ICacheService
+    internal class RedisCacheRepository : ICacheService, IRedisLuaExecutor
     {
         private readonly IRedisClientAdapter redisClient;
         private volatile bool isAvailable = true;
@@ -30,6 +30,15 @@ namespace YuanRateLimiter.Cache
         public bool IsAvailable => isAvailable;
 
         public CacheType CacheType => CacheType.Redis;
+
+        /// <summary>
+        /// 执行单 Key Redis Lua 脚本，并将 Redis 服务端毫秒时间注入 ARGV[1]
+        /// </summary>
+        /// <param name="key">用于路由和脚本执行的 Key</param>
+        /// <param name="script">Lua 脚本</param>
+        /// <param name="arguments">脚本其余参数，从 ARGV[2] 开始</param>
+        /// <returns>脚本返回的整数结果</returns>
+        public long Eval(string key, string script, params object[] arguments) => this.redisClient.Eval(key, script, arguments);
 
         /// <summary>
         /// 测试Redis连接

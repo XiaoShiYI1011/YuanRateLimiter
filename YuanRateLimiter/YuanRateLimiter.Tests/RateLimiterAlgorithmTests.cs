@@ -1,3 +1,5 @@
+using NewLife.Caching;
+using YuanRateLimiter.Cache;
 using YuanRateLimiter.Core;
 using YuanRateLimiter.Core.LeakBucket;
 using YuanRateLimiter.Core.SlidingWindow;
@@ -70,10 +72,113 @@ public class RateLimiterAlgorithmTests
         var cache = TestHelpers.CreateMemoryCache();
         var config = TestHelpers.CreateAllConfig(RateLimiterModel.TokenBucket, capacity: 5, rateLimit: 1);
         using var limiter = new TokenBucket(cache, config);
-        // 并发压测实例内信号量，防止读写缓存状态时超发令牌
-        var results = await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => limiter.CheckRateLimit(TestHelpers.CreateContext())));
+        // 统一起跑，确保多个工作线程真实竞争同一个本机限流状态
+        var results = await TestHelpers.RunConcurrentlyAsync(20, _ => limiter.CheckRateLimit(TestHelpers.CreateContext()));
         Assert.Equal(5, results.Count(allowed => allowed));
         Assert.Equal(15, results.Count(allowed => !allowed));
+    }
+
+    /// <summary>
+    /// 验证三种算法使用 MemoryCache 时会通过本机锁限制并发突发流量
+    /// </summary>
+    /// <param name="model">限流算法</param>
+    [Theory]
+    [InlineData(RateLimiterModel.TokenBucket)]
+    [InlineData(RateLimiterModel.LeakBucket)]
+    [InlineData(RateLimiterModel.SlidingWindow)]
+    public async Task Algorithms_WithMemoryCache_ConcurrentBurst_UsesLocalLockAndRespectsQuota(RateLimiterModel model)
+    {
+        var cache = TestHelpers.CreateMemoryCache();
+        var config = TestHelpers.CreateAllConfig(model, capacity: 5, rateLimit: 1, windowSize: 10, maxRequests: 5);
+        using var limiter = TestHelpers.CreateLimiter(model, cache, config);
+        var results = await TestHelpers.RunConcurrentlyAsync(40, _ => limiter.CheckRateLimit(TestHelpers.CreateContext()));
+        Assert.Equal(5, results.Count(allowed => allowed));
+        Assert.Equal(35, results.Count(allowed => !allowed));
+    }
+
+    /// <summary>
+    /// 验证三种算法的多个限流器实例共享同一个 MemoryCacheRepository 时仍会严格限制并发突发流量
+    /// </summary>
+    /// <param name="model">限流算法</param>
+    [Theory]
+    [InlineData(RateLimiterModel.TokenBucket)]
+    [InlineData(RateLimiterModel.LeakBucket)]
+    [InlineData(RateLimiterModel.SlidingWindow)]
+    public async Task Algorithms_WithMemoryCache_ConcurrentLimiterInstances_RespectSharedQuota(RateLimiterModel model)
+    {
+        var cache = TestHelpers.CreateMemoryCache();
+        var config = TestHelpers.CreateAllConfig(model, capacity: 5, rateLimit: 1, windowSize: 10, maxRequests: 5);
+        var limiters = Enumerable.Range(0, 40).Select(_ => TestHelpers.CreateLimiter(model, cache, config)).ToArray();
+        try
+        {
+            var results = await TestHelpers.RunConcurrentlyAsync(limiters.Length, index => limiters[index].CheckRateLimit(TestHelpers.CreateContext()));
+            Assert.Equal(5, results.Count(allowed => allowed));
+            Assert.Equal(35, results.Count(allowed => !allowed));
+        }
+        finally
+        {
+            foreach (var limiter in limiters) limiter.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// 验证 IP 限流器释放时依赖缓存 TTL，不通过按 IP 清理列表重置本机配额
+    /// </summary>
+    /// <param name="model">限流算法</param>
+    [Theory]
+    [InlineData(RateLimiterModel.TokenBucket)]
+    [InlineData(RateLimiterModel.LeakBucket)]
+    [InlineData(RateLimiterModel.SlidingWindow)]
+    public async Task IpAlgorithms_WithMemoryCache_DisposeDoesNotResetPerIpState(RateLimiterModel model)
+    {
+        var cache = TestHelpers.CreateMemoryCache();
+        var config = TestHelpers.CreateAllConfig(model, enableIpLimiter: true, capacity: 10, rateLimit: 1, windowSize: 10, maxRequests: 10);
+        using var limiter1 = TestHelpers.CreateLimiter(model, cache, config);
+        for (int i = 0; i < 10; i++) Assert.True(await limiter1.CheckRateLimit(TestHelpers.CreateContext()));
+        limiter1.Dispose();
+        using var limiter2 = TestHelpers.CreateLimiter(model, cache, config);
+        Assert.False(await limiter2.CheckRateLimit(TestHelpers.CreateContext()));
+    }
+
+    /// <summary>
+    /// 验证三种 MemoryCache 限流状态都设置了覆盖恢复周期的 TTL
+    /// </summary>
+    /// <param name="model">限流算法</param>
+    [Theory]
+    [InlineData(RateLimiterModel.TokenBucket)]
+    [InlineData(RateLimiterModel.LeakBucket)]
+    [InlineData(RateLimiterModel.SlidingWindow)]
+    public async Task Algorithms_WithMemoryCache_AssignsStateTtl(RateLimiterModel model)
+    {
+        var memoryCache = new MemoryCache();
+        var cache = new MemoryCacheRepository(memoryCache);
+        var config = TestHelpers.CreateAllConfig(model, capacity: 5, rateLimit: 1, windowSize: 5, maxRequests: 5, cacheKey: TestHelpers.UniqueCacheKey());
+        using var limiter = TestHelpers.CreateLimiter(model, cache, config);
+        Assert.True(await limiter.CheckRateLimit(TestHelpers.CreateContext()));
+        var cacheKey = RateLimiterRuleMatcher.GetCacheKey(config, "all");
+        string[] stateKeys;
+        double expectedSeconds;
+        switch (model)
+        {
+            case RateLimiterModel.TokenBucket:
+                stateKeys = [cacheKey + ":tokens", cacheKey + ":last"];
+                expectedSeconds = 5;
+                break;
+            case RateLimiterModel.LeakBucket:
+                stateKeys = [cacheKey + ":lastTime", cacheKey + ":level"];
+                expectedSeconds = 5;
+                break;
+            case RateLimiterModel.SlidingWindow:
+                stateKeys = [cacheKey];
+                expectedSeconds = 6;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(model), model, null);
+        }
+        foreach (var stateKey in stateKeys)
+        {
+            Assert.InRange(memoryCache.GetExpire(stateKey).TotalSeconds, expectedSeconds - 1, expectedSeconds + 0.1);
+        }
     }
 
     /// <summary>

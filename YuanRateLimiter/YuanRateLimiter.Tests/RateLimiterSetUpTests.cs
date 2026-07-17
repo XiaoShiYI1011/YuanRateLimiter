@@ -18,6 +18,18 @@ namespace YuanRateLimiter.Tests;
 public class RateLimiterSetUpTests
 {
     /// <summary>
+    /// 验证同一服务集合重复注册限流中间件会快速失败
+    /// </summary>
+    [Fact]
+    public void AddRateLimiterSetUp_WhenCalledTwice_Throws()
+    {
+        var services = new ServiceCollection();
+        services.AddRateLimiterSetUp(_ => TestHelpers.CreateAllConfig());
+        var exception = Assert.Throws<InvalidOperationException>(() => services.AddRateLimiterSetUp(_ => TestHelpers.CreateAllConfig()));
+        Assert.Contains("只能调用一次", exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// 验证旧版注册重载能读取已经注册的 RateLimiterConfig 并保留用户配置
     /// </summary>
     [Fact]

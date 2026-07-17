@@ -13,7 +13,7 @@ namespace YuanRateLimiter.Cache
     /// 创 建 者：十一 
     /// 创建时间：2025/12/5 15:12:11 
     /// </summary>
-    internal class HybridCacheRepository : ICacheService, IDisposable
+    internal class HybridCacheRepository : ICacheService, ICacheFallbackExecutor, IDisposable
     {
         private readonly RedisCacheRepository redisCache; // 主缓存
         private readonly MemoryCacheRepository memoryCache; // 降级缓存
@@ -45,6 +45,16 @@ namespace YuanRateLimiter.Cache
             this.config = config;
             _ = Task.Run(() => RedisHealthCheckLoop(this.cts.Token));
         }
+
+        /// <summary>
+        /// 将一次完整操作交给选定的缓存后端执行
+        /// </summary>
+        /// <typeparam name="T">操作返回类型</typeparam>
+        /// <param name="operation">需要完整执行的缓存操作</param>
+        /// <param name="operationName">操作名称</param>
+        /// <returns>操作结果</returns>
+        T ICacheFallbackExecutor.ExecuteWithFallback<T>(Func<ICacheService, T> operation, string operationName) =>
+            ExecuteWithFallback(operation, null, operationName);
 
         /// <summary>
         /// 检查Redis健康状态
@@ -105,7 +115,7 @@ namespace YuanRateLimiter.Cache
                 if (this.redisAvailable != isAvailable)
                 {
                     this.redisAvailable = isAvailable;
-                    string status = isAvailable ? "恢复" : "降级";
+                    string status = isAvailable ? "恢复，重新使用 Redis 缓存" : "降级到本机内存缓存，不保证全局限流";
                     this.logger.LogInformation($"{DateTime.Now:yyyy-MM-dd HH:mm:ss:fff}：Redis状态变化: {status}");
                     this.currentInterval = isAvailable ? this.normalInterval : this.initialBackoffInterval;
                 }
@@ -151,8 +161,12 @@ namespace YuanRateLimiter.Cache
                 {
                     // Redis操作失败，降级到内存
                     UpdateRedisAvailability(false);
-                    this.logger.LogWarning($"{DateTime.Now:yyyy-MM-dd HH:mm:ss:fff}：Redis操作失败({operationName})，降级到内存缓存: {ex.Message}");
-                    if (this.config.EnableFallbackCache) return operation(this.memoryCache);
+                    if (this.config.EnableFallbackCache)
+                    {
+                        this.logger.LogWarning($"{DateTime.Now:yyyy-MM-dd HH:mm:ss:fff}：Redis操作失败({operationName})，已改用本机内存缓存，不保证全局限流: {ex.Message}");
+                        return operation(this.memoryCache);
+                    }
+                    this.logger.LogWarning($"{DateTime.Now:yyyy-MM-dd HH:mm:ss:fff}：Redis操作失败({operationName})，且未启用降级缓存，将抛出异常: {ex.Message}");
                     throw new InvalidOperationException($"缓存操作失败且降级缓存已禁用: {operationName}", ex);
                 }
             }
@@ -278,11 +292,15 @@ namespace YuanRateLimiter.Cache
                 catch (Exception ex)
                 {
                     UpdateRedisAvailability(false);
-                    this.logger.LogWarning($"Redis读取失败({key})，尝试从内存读取: {ex.Message}");
-                    if (this.config.EnableFallbackCache) return this.memoryCache.Get<T>(key);
+                    if (this.config.EnableFallbackCache)
+                    {
+                        this.logger.LogWarning($"Redis读取失败({key})，已改用本机内存读取，不保证全局限流: {ex.Message}");
+                        return this.memoryCache.Get<T>(key);
+                    }
                     // 如果没有启用降级，但启用了双写，可能内存中有数据
                     if (this.config.EnableDoubleWrite)
                     {
+                        this.logger.LogWarning($"Redis读取失败({key})，未启用降级缓存，但启用了双写，将尝试从本机内存读取: {ex.Message}");
                         try
                         {
                             return this.memoryCache.Get<T>(key);
@@ -292,6 +310,7 @@ namespace YuanRateLimiter.Cache
                             throw new InvalidOperationException($"无法从任何缓存中读取键: {key}");
                         }
                     }
+                    this.logger.LogWarning($"Redis读取失败({key})，且未启用降级缓存，将抛出异常: {ex.Message}");
                     throw new InvalidOperationException($"Redis读取失败且降级缓存已禁用: {key}", ex);
                 }
             }
@@ -352,8 +371,12 @@ namespace YuanRateLimiter.Cache
                 catch (Exception ex)
                 {
                     UpdateRedisAvailability(false);
-                    this.logger.LogWarning($"{DateTime.Now:yyyy-MM-dd HH:mm:ss:fff}：Redis检查存在失败({key})，尝试从内存检查: {ex.Message}");
-                    if (this.config.EnableFallbackCache) return this.memoryCache.ExistsKey(key);
+                    if (this.config.EnableFallbackCache)
+                    {
+                        this.logger.LogWarning($"{DateTime.Now:yyyy-MM-dd HH:mm:ss:fff}：Redis检查存在失败({key})，已改用本机内存检查，不保证全局限流: {ex.Message}");
+                        return this.memoryCache.ExistsKey(key);
+                    }
+                    this.logger.LogWarning($"{DateTime.Now:yyyy-MM-dd HH:mm:ss:fff}：Redis检查存在失败({key})，且未启用降级缓存，将抛出异常: {ex.Message}");
                     throw new InvalidOperationException($"Redis检查存在失败且降级缓存已禁用: {key}", ex);
                 }
             }

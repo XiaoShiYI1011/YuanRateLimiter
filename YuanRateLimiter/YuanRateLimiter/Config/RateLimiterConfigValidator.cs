@@ -74,28 +74,13 @@ namespace YuanRateLimiter.Config
             config.IpBlackList = NormalizeIpList(config.IpBlackList, "IpBlackList", messages);
             if (config.RateLimiterRule == null)
             {
-                messages.Add("RateLimiter.RateLimiterRule 未配置，已使用默认全接口限流规则。");
+                messages.Add("RateLimiter.RateLimiterRule 未配置，已创建默认 All 级别规则；如果开启限流，将按全接口规则生效。");
                 config.RateLimiterRule = new RateLimiterRule();
             }
             if (!System.Enum.IsDefined(typeof(RateLimitingLevel), config.RateLimiterRule.RateLimiterLogLevel))
             {
                 messages.Add($"RateLimiter.RateLimiterRule.RateLimiterLogLevel 配置值 {config.RateLimiterRule.RateLimiterLogLevel} 无效，已改为 All。");
                 config.RateLimiterRule.RateLimiterLogLevel = RateLimitingLevel.All;
-            }
-            if (config.RateLimiterRule.AllFlowLimiterRule == null)
-            {
-                messages.Add("RateLimiter.RateLimiterRule.AllFlowLimiterRule 未配置，已补充默认全接口限流规则。");
-                config.RateLimiterRule.AllFlowLimiterRule = new AllFlowLimiterRule
-                {
-                    Capacity = DefaultCapacity,
-                    RateLimit = DefaultRateLimit,
-                    WindowSize = DefaultWindowSize,
-                    MaxRequests = DefaultMaxRequests
-                };
-            }
-            else
-            {
-                NormalizeRule(config.RateLimiterRule.AllFlowLimiterRule, "RateLimiter.RateLimiterRule.AllFlowLimiterRule", messages);
             }
             if (config.RateLimiterRule.MethodFlowLimiterRules != null)
             {
@@ -148,15 +133,23 @@ namespace YuanRateLimiter.Config
                 }
                 config.RateLimiterRule.ActionFlowLimiterRules = validRules.ToArray();
             }
-            if (config.RateLimiterRule.RateLimiterLogLevel == RateLimitingLevel.Method && (config.RateLimiterRule.MethodFlowLimiterRules == null || config.RateLimiterRule.MethodFlowLimiterRules.Length == 0))
+            switch (config.RateLimiterRule.RateLimiterLogLevel)
             {
-                messages.Add("RateLimiter.RateLimiterRule.RateLimiterLogLevel 配置为 Method，但没有可用的 MethodFlowLimiterRules，已回退为 All。");
-                config.RateLimiterRule.RateLimiterLogLevel = RateLimitingLevel.All;
-            }
-            if (config.RateLimiterRule.RateLimiterLogLevel == RateLimitingLevel.Action && (config.RateLimiterRule.ActionFlowLimiterRules == null || config.RateLimiterRule.ActionFlowLimiterRules.Length == 0))
-            {
-                messages.Add("RateLimiter.RateLimiterRule.RateLimiterLogLevel 配置为 Action，但没有可用的 ActionFlowLimiterRules，已回退为 All。");
-                config.RateLimiterRule.RateLimiterLogLevel = RateLimitingLevel.All;
+                case RateLimitingLevel.All:
+                    EnsureAllFlowLimiterRule(config, messages);
+                    break;
+                case RateLimitingLevel.Method:
+                    if (config.RateLimiterRule.MethodFlowLimiterRules == null || config.RateLimiterRule.MethodFlowLimiterRules.Length == 0)
+                    {
+                        messages.Add("RateLimiter.RateLimiterRule.RateLimiterLogLevel 配置为 Method，但没有可用的 MethodFlowLimiterRules；Method 级限流不会生效，也不会自动回退为 All。");
+                    }
+                    break;
+                case RateLimitingLevel.Action:
+                    if (config.RateLimiterRule.ActionFlowLimiterRules == null || config.RateLimiterRule.ActionFlowLimiterRules.Length == 0)
+                    {
+                        messages.Add("RateLimiter.RateLimiterRule.RateLimiterLogLevel 配置为 Action，但没有可用的 ActionFlowLimiterRules；Action 级限流不会生效，也不会自动回退为 All。");
+                    }
+                    break;
             }
             return config;
         }
@@ -201,6 +194,30 @@ namespace YuanRateLimiter.Config
             {
                 messages.Add($"{path}.MaxRequests 配置值 {rule.MaxRequests} 无效，已改为默认值 {DefaultMaxRequests}。");
                 rule.MaxRequests = DefaultMaxRequests;
+            }
+        }
+
+        /// <summary>
+        /// 确保 All 级别限流拥有可用的全接口规则
+        /// </summary>
+        /// <param name="config">限流配置</param>
+        /// <param name="messages">中文诊断信息集合</param>
+        private static void EnsureAllFlowLimiterRule(RateLimiterConfig config, IList<string> messages)
+        {
+            if (config.RateLimiterRule.AllFlowLimiterRule == null)
+            {
+                messages.Add("RateLimiter.RateLimiterRule.RateLimiterLogLevel 配置为 All，但 AllFlowLimiterRule 未配置，已补充默认全接口限流规则。");
+                config.RateLimiterRule.AllFlowLimiterRule = new AllFlowLimiterRule
+                {
+                    Capacity = DefaultCapacity,
+                    RateLimit = DefaultRateLimit,
+                    WindowSize = DefaultWindowSize,
+                    MaxRequests = DefaultMaxRequests
+                };
+            }
+            else
+            {
+                NormalizeRule(config.RateLimiterRule.AllFlowLimiterRule, "RateLimiter.RateLimiterRule.AllFlowLimiterRule", messages);
             }
         }
 

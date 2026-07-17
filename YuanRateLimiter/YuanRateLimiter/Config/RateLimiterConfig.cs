@@ -39,9 +39,9 @@ namespace YuanRateLimiter.Config
         public bool EnableFallbackCache { get; set; } = true;
 
         /// <summary>
-        /// 是否启用双写策略
-        /// Redis写数据的同时内存也写数据，确保缓存高可用
-        /// 注意：默认关闭以避免内存占用过高，Redis宕机恢复后不需要回种内存中的限流数据
+        /// 是否启用通用缓存双写策略
+        /// 注意：Lua 原子限流状态不会异步重放到 MemoryCache，该配置不能保证故障前后配额连续
+        /// 默认关闭以避免内存占用和写放大
         /// 默认值：false
         /// </summary>
         /// <example>true</example>

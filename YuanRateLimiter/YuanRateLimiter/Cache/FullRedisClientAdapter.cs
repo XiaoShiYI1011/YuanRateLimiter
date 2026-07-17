@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using NewLife.Caching;
 
 namespace YuanRateLimiter.Cache
 {
     /// <summary>
-    /// FullRedis 客户端适配器，生产环境仍然委托给 NewLife.Redis。
+    /// FullRedis 客户端适配器，生产环境仍然委托给 NewLife.Redis
     /// </summary>
     internal sealed class FullRedisClientAdapter : IRedisClientAdapter
     {
@@ -49,5 +50,32 @@ namespace YuanRateLimiter.Cache
         public bool ContainsKey(string key) => this.redisClient.ContainsKey(key);
 
         public bool SetExpire(string key, TimeSpan expire) => this.redisClient.SetExpire(key, expire);
+
+        /// <summary>
+        /// 执行单 Key Redis Lua 脚本，并将 Redis 服务器当前毫秒时间自动注入 ARGV[1]
+        /// </summary>
+        /// <param name="key">用于集群路由和脚本执行的 Key</param>
+        /// <param name="script">Lua 脚本</param>
+        /// <param name="arguments">传入脚本的其余 ARGV 参数，从 ARGV[2] 开始</param>
+        /// <returns>脚本返回的整数结果</returns>
+        public long Eval(string key, string script, params object[] arguments)
+        {
+            return this.redisClient.Execute(key, (client, actualKey) =>
+            {
+                string[] serverTime = client.Execute<string[]>("TIME");
+                if (serverTime == null || serverTime.Length < 2) throw new InvalidOperationException("Redis TIME 命令未返回有效时间。");
+                long seconds = long.Parse(serverTime[0], CultureInfo.InvariantCulture);
+                long microseconds = long.Parse(serverTime[1], CultureInfo.InvariantCulture);
+                long serverTimeMilliseconds = seconds * 1000 + microseconds / 1000;
+                int argumentCount = arguments?.Length ?? 0;
+                var evalArguments = new object[argumentCount + 4];
+                evalArguments[0] = script;
+                evalArguments[1] = 1;
+                evalArguments[2] = actualKey;
+                evalArguments[3] = serverTimeMilliseconds;
+                if (argumentCount > 0) Array.Copy(arguments, 0, evalArguments, 4, argumentCount);
+                return client.Execute<long>("EVAL", evalArguments);
+            }, true);
+        }
     }
 }

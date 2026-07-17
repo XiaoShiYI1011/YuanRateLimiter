@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -163,6 +164,79 @@ public class RedisIntegrationTests
     }
 
     /// <summary>
+    /// 验证三种算法在多个限流器实例并发共享 Redis 状态时不会超过理论额度
+    /// </summary>
+    /// <param name="model">限流算法</param>
+    [Theory]
+    [InlineData(RateLimiterModel.TokenBucket)]
+    [InlineData(RateLimiterModel.LeakBucket)]
+    [InlineData(RateLimiterModel.SlidingWindow)]
+    [Trait("Category", "RedisIntegration")]
+    public async Task Algorithms_WithRealRedis_ConcurrentLimiterInstances_DoNotOverAllow(RateLimiterModel model)
+    {
+        using var redis = RedisTestSettings.CreateClient();
+        var cache = new RedisCacheRepository(redis);
+        var config = TestHelpers.CreateAllConfig(
+            model: model,
+            capacity: 5,
+            rateLimit: 1,
+            windowSize: 10,
+            maxRequests: 5,
+            cacheKey: RedisTestSettings.UniqueKey("atomic-" + model));
+        var limiters = Enumerable.Range(0, 40)
+            .Select(_ => TestHelpers.CreateLimiter(model, cache, config))
+            .ToArray();
+        try
+        {
+            var stopwatch = new Stopwatch();
+            var results = await TestHelpers.RunConcurrentlyAsync(
+                limiters.Length,
+                index => limiters[index].CheckRateLimit(TestHelpers.CreateContext()),
+                stopwatch.Start);
+            stopwatch.Stop();
+            int allowedCount = results.Count(allowed => allowed);
+            if (model == RateLimiterModel.SlidingWindow) Assert.Equal(5, allowedCount);
+            else Assert.InRange(allowedCount, 5, 5 + (int)Math.Floor(stopwatch.Elapsed.TotalSeconds));
+            Assert.Equal(limiters.Length - allowedCount, results.Count(allowed => !allowed));
+        }
+        finally
+        {
+            foreach (var limiter in limiters) limiter.Dispose();
+            DeleteRateLimiterState(cache, config, model);
+        }
+    }
+
+    /// <summary>
+    /// 验证释放一个 Redis 限流器实例不会重置其他实例仍在使用的共享配额
+    /// </summary>
+    [Fact]
+    [Trait("Category", "RedisIntegration")]
+    public async Task DisposingOneRedisLimiter_DoesNotResetStateSeenByAnotherInstance()
+    {
+        using var redis = RedisTestSettings.CreateClient();
+        var cache = new RedisCacheRepository(redis);
+        var config = TestHelpers.CreateAllConfig(
+            model: RateLimiterModel.TokenBucket,
+            capacity: 1,
+            rateLimit: 1,
+            cacheKey: RedisTestSettings.UniqueKey("dispose-shared-state"));
+        var limiter1 = new TokenBucket(cache, config);
+        var limiter2 = new TokenBucket(cache, config);
+        try
+        {
+            Assert.True(await limiter1.CheckRateLimit(TestHelpers.CreateContext()));
+            limiter1.Dispose();
+            Assert.False(await limiter2.CheckRateLimit(TestHelpers.CreateContext()));
+        }
+        finally
+        {
+            limiter1.Dispose();
+            limiter2.Dispose();
+            DeleteRateLimiterState(cache, config, RateLimiterModel.TokenBucket);
+        }
+    }
+
+    /// <summary>
     /// 验证混合缓存使用真实 Redis 时会以 Redis 为主存储，并按配置双写到内存缓存
     /// </summary>
     [Fact]
@@ -279,5 +353,24 @@ public class RedisIntegrationTests
             await Task.Delay(50);
         }
         Assert.True(predicate());
+    }
+
+    /// <summary>
+    /// 删除测试使用的旧版和 Lua 版限流状态
+    /// </summary>
+    /// <param name="cache">Redis 缓存</param>
+    /// <param name="config">限流配置</param>
+    /// <param name="model">限流算法</param>
+    private static void DeleteRateLimiterState(RedisCacheRepository cache, Config.RateLimiterConfig config, RateLimiterModel model)
+    {
+        var baseKey = Core.RateLimiterRuleMatcher.GetCacheKey(config, "all");
+        cache.DelKey(baseKey);
+        cache.DelKey(baseKey + ":tokens");
+        cache.DelKey(baseKey + ":last");
+        cache.DelKey(baseKey + ":level");
+        cache.DelKey(baseKey + ":lastTime");
+        cache.DelKey(baseKey + ":tb:lua:v1");
+        cache.DelKey(baseKey + ":lb:lua:v1");
+        cache.DelKey(baseKey + ":sw:lua:v1");
     }
 }
