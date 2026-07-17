@@ -19,7 +19,7 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 - ✅ **三级限流策略**：支持全接口、Method 级别、Action 级别的灵活配置
 - ✅ **IP 黑白名单**：可配置 IP 白名单（跳过限流）与黑名单（直接拒绝）
 - ✅ **智能缓存降级**：Redis 不可用时自动降级到内存缓存，限流不中断
-- ✅ **双写策略（可选）**：Redis 与内存缓存双写，提升高可用性
+- ✅ **原子缓存状态**：Redis 使用 Lua 原子更新，MemoryCache 使用本机锁
 - ✅ **健康检查与退避重试**：自动检测 Redis 状态，支持指数退避重连
 - ✅ **多版本支持**：支持 .NET 6、.NET 5 及以下版本
 - ✅ **配置驱动**：完全通过 `appsettings.json` 配置，无需硬编码
@@ -32,7 +32,7 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 1. NuGet安装
 
     ```
-    NuGet\Install-Package YuanRateLimiter -Version 2.4.4
+    NuGet\Install-Package YuanRateLimiter -Version 2.5.0
     ```
 
 2. 使用
@@ -40,15 +40,15 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
     - NET Core 6
 
         ```c#
-        // 注册限流中间件
-        // 使用Redis：
+        // 注册限流中间件，以下两种缓存方式选择一种。
+        // 方式一：使用 Redis。
         builder.Services.AddRateLimiterSetUp(
-            builder.Configuration["Redis连接字符串"], 
-            config => builder.Configuration.GetSection("RateLimiter配置节点").Get<RateLimiterConfig>());
-        // 使用MemoryCache：
-        builder.Services.AddRateLimiterSetUp(
-            config => builder.Configuration.GetSection("RateLimiter配置节点").Get<RateLimiterConfig>());
-        
+            config => builder.Configuration.GetSection("RateLimiter配置节点").Get<RateLimiterConfig>(),
+            builder.Configuration["Redis连接字符串"]);
+        // 方式二：使用 MemoryCache。
+        // builder.Services.AddRateLimiterSetUp(
+        //     config => builder.Configuration.GetSection("RateLimiter配置节点").Get<RateLimiterConfig>());
+
         // 使用限流中间件（添加在跨域中间件的下面，否则前端无法捕获错误状态码）
         app.UseRateLimitMiddleware();
         ```
@@ -105,7 +105,7 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
         "HttpStatusCode": 429, // 限流状态码，可以不配置，默认429
         "LimitingMessage": "请求过于频繁，请稍后再试。", // 触发限流的提示消息，可以不配置，默认此文本的英文
         "EnableFallbackCache": true, // 启用降级缓存
-        "EnableDoubleWrite": true, // 关闭双写（Redis写数据的同时内存也写数据，确保缓存高可用，默认关闭，避免内存占用过高，Redis宕机恢复后不需要回种内存中的限流数据，因为因为限流数据几乎是瞬时的，回种内存数据意义不大）
+        "EnableDoubleWrite": false, // 默认关闭；Lua 原子限流状态不会异步重放到 MemoryCache
         "RedisRetryCount": 3, // Redis重试次数
         "RedisRetryDelayMs": 1000, // Redis重试延迟(毫秒)
         "CacheKey": "RateLimiterKey", // 缓存Key，可以不配置，默认RateLimiterKey
@@ -173,6 +173,16 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 
 ## 🧾更新日志
 
+- v2.4.5
+  - 【ADD】Redis 后端使用单 Key Lua 脚本完成令牌桶、漏桶和滑动窗口的分布式原子限流
+  - 【FIX】限流器释放时不再删除 Redis / Hybrid 共享状态，避免单个应用实例下线重置全局配额
+  - 【OPT】Redis 限流状态增加 TTL；MemoryCache 后端继续使用本机 Keyed Lock
+  - 【OPT】IP 限流状态依赖缓存 TTL，不再维护随 IP 数量增长的本机清理列表
+  - 【FIX】调整配置校验逻辑：`Action` / `Method` 级限流不再因为未配置 `AllFlowLimiterRule` 输出“已补充默认全接口限流规则”的误导性警告
+  - 【FIX】`Action` / `Method` 级规则为空或无效时，不再隐式回退到 `All` 级限流，避免日志提示与实际限流级别不一致
+  - 【OPT】优化配置诊断日志语义：只有 `RateLimiterLogLevel = All` 且缺少 `AllFlowLimiterRule` 时，才提示补充默认全接口规则
+  - 【OPT】优化 Redis / MemoryCache 相关日志：明确说明本机内存缓存不保证多实例全局限流，Redis 故障降级日志不再含糊表述
+  - 【TEST】补充配置校验单元测试，覆盖 `Action` / `Method` 不自动回退、`All` 级规则补齐、误导性日志不再出现等场景
 - v2.4.4
   - 【ADD】新增 Action 级 API 路径通配符，支持 `*`、`**`、`?`、`{param}`，并保持精确路径优先
   - 【FIX】修复 IP 黑名单判断条件错误的问题，避免 `IpBlackList` 配置在部分场景下不生效
@@ -227,7 +237,8 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 
 ## 📑更新计划
 
--  Redis 后端使用 Lua 脚本实现分布式原子限流，MemoryCache 后端继续使用本地锁🛠
+-  支持自定义缓存实现🛠
+-  Redis 后端使用 Lua 脚本实现分布式原子限流，MemoryCache 后端继续使用本地锁✔
 -  增加Api路径通配符✔
 -  增加容错缓存机制，Redis宕机时自动降级到内存缓存，增加双写策略✔
 -  集成固定窗口算法（暂缓该算法开发）🛠
@@ -259,7 +270,7 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 
 ### Q3: 双写策略（EnableDoubleWrite）有什么作用？建议开启吗？
 
-**A:** 双写策略会同时将数据写入 Redis 和内存缓存，进一步提高可用性。但会略微增加内存使用和写入延迟。**建议**：对于关键业务系统可以开启，一般场景保持关闭即可。
+**A:** 当前三种限流算法使用完整原子状态转换，Redis Lua 判定不会异步重放到 MemoryCache，因此该开关不能保证 Redis 故障前后配额连续。建议保持关闭，并按业务要求选择 Memory 降级或 fail-closed 策略。
 
 ### Q4: 如何在多服务器/分布式环境下使用？
 
@@ -267,7 +278,7 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 
 ### Q5: IP 限流（EnableIpLimiter）开启后有什么影响？
 
-**A:** 开启后，系统会为每个 IP 单独维护限流计数。适合防止单个 IP 恶意请求的场景。**注意**：IP 数过多时，内存/Redis 使用会相应增加。
+**A:** 开启后，系统会为每个 IP 单独维护限流计数。适合防止单个 IP 恶意请求的场景。内置缓存状态带 TTL，限流器不会永久保存按 IP 的清理列表；但活跃 IP 过多时，内存/Redis 使用仍会相应增加。
 
 ### Q6: 如何监控限流触发情况？
 
@@ -314,7 +325,7 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 
 - 建议在生产环境前进行压测，根据实际流量调整参数
 - 如果使用 Redis，请确保连接字符串正确且网络通畅
-- 启用双写策略会增加内存使用，请根据服务器资源酌情开启
+- Lua 原子限流状态不会异步双写；Redis 故障降级后不再保持严格全局配额
 - 若使用 .NET 7/8/9，也可考虑官方内置的限流中间件（但配置更复杂）
 
 ## 🤝定制化咨询与技术服务
@@ -334,96 +345,3 @@ YuanRateLimiter 是一个基于ASP.NET Core 的高性能、高可用限流中间
 - 本项目已取得计算机软件著作权登记证书（登记号：**2026SR0385962**）
 - 不能以任何形式将该项目用于非法为目的的行为。
 - 任何基于本软件而产生的一切法律纠纷和责任，均于作者无关。
-
-
-
-
-
-
-
-
-
-
-
-
-
-```
-using System.Net;
-using Microsoft.AspNetCore.Http;
-using NewLife.Caching;
-using YuanRateLimiter.Cache;
-using YuanRateLimiter.Config;
-using YuanRateLimiter.Enum;
-
-namespace YuanRateLimiter.Tests;
-
-internal static class TestHelpers
-{
-    public static DefaultHttpContext CreateContext(
-        string method = "GET",
-        string path = "/api/test",
-        string? remoteIp = "203.0.113.10")
-    {
-        var context = new DefaultHttpContext();
-        context.Request.Method = method;
-        context.Request.Path = path;
-        context.Response.Body = new MemoryStream();
-        if (remoteIp != null)
-        {
-            context.Connection.RemoteIpAddress = IPAddress.Parse(remoteIp);
-        }
-
-        return context;
-    }
-
-    public static RateLimiterConfig CreateAllConfig(
-        RateLimiterModel model = RateLimiterModel.TokenBucket,
-        bool enableIpLimiter = false,
-        int capacity = 2,
-        int rateLimit = 100,
-        int windowSize = 10,
-        int maxRequests = 2,
-        string? cacheKey = null)
-    {
-        return new RateLimiterConfig
-        {
-            EnableRateLimiter = true,
-            RateLimiterModel = model,
-            EnableIpLimiter = enableIpLimiter,
-            CacheKey = cacheKey ?? UniqueCacheKey(),
-            RateLimiterRule = new RateLimiterRule
-            {
-                RateLimiterLogLevel = RateLimitingLevel.All,
-                AllFlowLimiterRule = new AllFlowLimiterRule
-                {
-                    Capacity = capacity,
-                    RateLimit = rateLimit,
-                    WindowSize = windowSize,
-                    MaxRequests = maxRequests
-                }
-            }
-        };
-    }
-
-    public static MemoryCacheRepository CreateMemoryCache()
-    {
-        return new MemoryCacheRepository(new MemoryCache());
-    }
-
-    public static string UniqueCacheKey()
-    {
-        return "test-" + Guid.NewGuid().ToString("N");
-    }
-
-    public static async Task<string> ReadResponseBodyAsync(HttpContext context)
-    {
-        context.Response.Body.Position = 0;
-        using var reader = new StreamReader(context.Response.Body, leaveOpen: true);
-        return await reader.ReadToEndAsync();
-    }
-}
-
-```
-
-
-
